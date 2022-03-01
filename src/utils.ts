@@ -51,9 +51,7 @@ export function assertFlexBytes<Min extends number, Max extends number = Min>(
 ): asserts b is FlexBytes<Min, Max> {
   if (!isFlexBytes(b, min, max)) {
     throw new TypeError(
-      `Parameter is not valid FlexBytes of  min: ${min}, max: ${max}, length: ${
-        (b as Uint8Array).length
-      }`,
+      `Parameter is not valid FlexBytes of  min: ${min}, max: ${max}, length: ${(b as Uint8Array).length}`,
     )
   }
 }
@@ -95,10 +93,7 @@ export function keccak256Hash(...messages: Message[]): Bytes<32> {
  * @param bytes   The input array
  * @param len     The length of the non prefixed HexString
  */
-export function bytesToHex<Length extends number>(
-  bytes: Uint8Array,
-  len: Length,
-): HexString<Length> {
+export function bytesToHex<Length extends number>(bytes: Uint8Array, len: Length): HexString<Length> {
   const hexByte = (n: number) => n.toString(16).padStart(2, '0')
   const hex = Array.from(bytes, hexByte).join('') as HexString<Length>
 

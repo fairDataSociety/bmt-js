@@ -16,7 +16,6 @@ export interface Chunk<
   data(): ValidChunkData
   span(): Bytes<SpanSize>
   address(): ChunkAddress
-  //TODO inclusionProofSegments
 }
 
 /**
@@ -43,13 +42,14 @@ export function makeChunk<
   const spanSize = (options?.spanSize || DEFAULT_SPAN_SIZE) as SpanSize
 
   assertFlexBytes(payloadBytes, minPayloadSize, maxPayloadSize)
+  const paddingChunkLength = new Uint8Array(maxPayloadSize - payloadBytes.length)
   const spanFn = () => makeSpan(payloadBytes.length, spanSize)
-  const dataFn = () => serializeBytes(spanFn(), payloadBytes) as ValidChunkData
+  const dataFn = () => serializeBytes(payloadBytes, new Uint8Array(paddingChunkLength)) as ValidChunkData
 
   return {
     payload: payloadBytes,
     data: dataFn,
     span: spanFn,
-    address: () => bmtHash(dataFn()),
+    address: () => bmtHash(payloadBytes),
   }
 }
