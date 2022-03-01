@@ -1,4 +1,5 @@
 import { keccak256 } from 'js-sha3'
+import { makeSpan } from '.'
 import { Bytes, keccak256Hash } from './utils'
 
 const MAX_CHUNK_PAYLOAD_SIZE = 4096
@@ -16,13 +17,12 @@ const HASH_SIZE = 32
  * If the chunk content is less than 4k, the hash is calculated as
  * if the chunk was padded with all zeros up to 4096 bytes.
  *
- * @param chunkContent Chunk data including span and payload as well
+ * @param payload Chunk data including span and payload as well
  *
  * @returns the keccak256 hash in a byte array
  */
-export function bmtHash(chunkContent: Uint8Array): Bytes<32> {
-  const span = chunkContent.slice(0, 8)
-  const payload = chunkContent.slice(8)
+export function bmtHash(payload: Uint8Array): Bytes<32> {
+  const span = makeSpan(payload.length)
   const rootHash = bmtRootHash(payload)
   const chunkHashInput = new Uint8Array([...span, ...rootHash])
   const chunkHash = keccak256Hash(chunkHashInput)
@@ -36,10 +36,7 @@ function bmtRootHash(payload: Uint8Array): Uint8Array {
   }
 
   // create an input buffer padded with zeros
-  let input = new Uint8Array([
-    ...payload,
-    ...new Uint8Array(MAX_CHUNK_PAYLOAD_SIZE - payload.length),
-  ])
+  let input = new Uint8Array([...payload, ...new Uint8Array(MAX_CHUNK_PAYLOAD_SIZE - payload.length)])
   while (input.length !== HASH_SIZE) {
     const output = new Uint8Array(input.length / 2)
 
@@ -62,16 +59,13 @@ function bmtRootHash(payload: Uint8Array): Uint8Array {
  * @returns array of the whole bmt hash level of the given data.
  * First level is the data itself until the last level that is the root hash itself.
  */
-function bmtTree(payload: Uint8Array): Uint8Array[] {
+export function bmtTree(payload: Uint8Array): Uint8Array[] {
   if (payload.length > MAX_CHUNK_PAYLOAD_SIZE) {
     throw new Error(`invalid data length ${payload.length}`)
   }
 
   // create an input buffer padded with zeros
-  let input = new Uint8Array([
-    ...payload,
-    ...new Uint8Array(MAX_CHUNK_PAYLOAD_SIZE - payload.length),
-  ])
+  let input = new Uint8Array([...payload, ...new Uint8Array(MAX_CHUNK_PAYLOAD_SIZE - payload.length)])
   const tree: Uint8Array[] = []
   while (input.length !== HASH_SIZE) {
     tree.push(input)
@@ -89,4 +83,37 @@ function bmtTree(payload: Uint8Array): Uint8Array[] {
   tree.push(input)
 
   return tree
+}
+
+/**
+ * Gives back required inclusion proof segment pairs for a byte index of the given payload byte array
+ *
+ * @param payloadBytes data initialised in Uint8Array object
+ * @param payloadBytesIndex byte index in the data array that has to be proofed for inclusion
+ * @returns Required merged segment pairs for inclusion proofing starting from the data level and
+ * the root hash of the payload
+ */
+export function inclusionProofBottomUp(
+  payloadBytes: Uint8Array,
+  payloadBytesIndex: number,
+): { sisterSegments: Uint8Array[]; rootHash: Uint8Array } {
+  if (payloadBytesIndex >= payloadBytes.length) {
+    throw new Error(`The given segment index ${payloadBytesIndex} is greater than the payloadbyte length`)
+  }
+
+  const tree = bmtTree(payloadBytes)
+  const sisterSegments: Array<Uint8Array> = []
+  let segmentIndex = Math.floor(payloadBytesIndex / SEGMENT_SIZE)
+  const rootHashLevel = tree.length - 1
+  for (let level = 0; level < rootHashLevel; level++) {
+    const mergeCoefficient = segmentIndex % 2 === 0 ? 1 : -1
+    const sisterSegmentIndex = segmentIndex + SEGMENT_SIZE * mergeCoefficient
+    const startIndex = sisterSegmentIndex < segmentIndex ? sisterSegmentIndex : segmentIndex
+    const segments = tree[level].slice(startIndex, startIndex + SEGMENT_PAIR_SIZE)
+    sisterSegments.push(segments)
+    //segmentIndex for the next iteration
+    segmentIndex = Math.floor(segmentIndex / 2)
+  }
+
+  return { sisterSegments, rootHash: tree[rootHashLevel] }
 }
