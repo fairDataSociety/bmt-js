@@ -7,7 +7,7 @@ export interface Span<Length extends number = typeof DEFAULT_SPAN_SIZE>
     Flavor<'Span'> {}
 
 // we limit the maximum span size in 32 bits to avoid BigInt compatibility issues
-const MAX_SPAN_LENGTH = 2 ** 32 - 1
+export const MAX_SPAN_LENGTH = 2 ** 32 - 1
 
 /**
  * Create a span for storing the length of the chunk
