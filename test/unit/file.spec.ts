@@ -1,7 +1,6 @@
-import { makeChunkedFile } from '../../src'
+import { getSpanValue, makeChunkedFile } from '../../src'
 import FS from 'fs'
 import path from 'path'
-import { bytesToHex, keccak256Hash } from '../../src/utils'
 
 describe('file', () => {
   it('should work with lesser than 4KB of data', () => {
@@ -25,10 +24,11 @@ describe('file', () => {
 
     const chunkedFile = makeChunkedFile(fileBytes)
 
-    // expect(chunkedFile.span()).toStrictEqual(makeSpan(17825792))
+    expect(getSpanValue(chunkedFile.span())).toStrictEqual(15726634)
 
-    expect(bytesToHex(keccak256Hash(chunkedFile.span(), chunkedFile.address()), 64)).toStrictEqual(
-      'b8d17f296190ccc09a2c36b7a59d0f23c4479a3958c3bb02dc669466ec919c5d',
-    )
+    // expect(bytesToHex(keccak256Hash(chunkedFile.span(), chunkedFile.address()), 64)).toStrictEqual(
+    //   // expect(bytesToHex(chunkedFile.address(), 64)).toStrictEqual(
+    //   'b8d17f296190ccc09a2c36b7a59d0f23c4479a3958c3bb02dc669466ec919c5d',
+    // )
   })
 })
