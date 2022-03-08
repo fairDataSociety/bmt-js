@@ -42,11 +42,11 @@ export function makeChunk<
   // typescript does not recognise subset relation on union type definition
   const maxPayloadSize = (options?.maxPayloadSize || DEFAULT_MAX_PAYLOAD_SIZE) as MaxPayloadSize
   const spanSize = (options?.spanSize || DEFAULT_SPAN_SIZE) as SpanSize
-  const startingSpanValue = options?.startingSpanValue || 0
+  // const startingSpanValue = options?.startingSpanValue || 0
 
   assertFlexBytes(payloadBytes, 1, maxPayloadSize)
   const paddingChunkLength = new Uint8Array(maxPayloadSize - payloadBytes.length)
-  const spanFn = () => makeSpan(startingSpanValue + payloadBytes.length, spanSize)
+  const spanFn = () => makeSpan(options?.startingSpanValue || payloadBytes.length, spanSize)
   const dataFn = () => serializeBytes(payloadBytes, new Uint8Array(paddingChunkLength)) as ValidChunkData
 
   return {

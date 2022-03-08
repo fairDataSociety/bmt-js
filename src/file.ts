@@ -32,7 +32,6 @@ export function makeChunkedFile<
   },
 ): ChunkedFile<MaxChunkLength, SpanSize> {
   const maxPayloadSize = (options?.maxPayloadSize || DEFAULT_MAX_PAYLOAD_SIZE) as MaxChunkLength
-  const spanSize = (options?.spanSize || DEFAULT_SPAN_SIZE) as SpanSize
   let rootChunk: Chunk<MaxChunkLength, SpanSize>
 
   //splitter
