@@ -36,3 +36,9 @@ export function makeSpan<Length extends number>(value: number, length?: Length):
 
   return span as Bytes<Length>
 }
+
+export function getSpanValue<Length extends number = 8>(span: Span<Length>): number {
+  const dataView = new DataView(span.buffer)
+
+  return dataView.getUint32(0, true)
+}
