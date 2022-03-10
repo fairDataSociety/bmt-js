@@ -8,7 +8,7 @@ import {
   SEGMENT_SIZE,
   Span,
 } from '.'
-import { Flavor, keccak256Hash, serializeBytes } from './utils'
+import { Flavor, serializeBytes } from './utils'
 
 export interface ChunkedFile<
   MaxChunkLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
@@ -16,9 +16,11 @@ export interface ChunkedFile<
 > extends Flavor<'ChunkedFile'> {
   // zero level data chunks
   leafChunks(): Chunk<MaxChunkLength, SpanSize>[]
+  rootChunk(): Chunk<MaxChunkLength, SpanSize>
   payload: Uint8Array
   address(): ChunkAddress
   span(): Span<SpanSize>
+  bmtTree(): Chunk<MaxChunkLength, SpanSize>[][]
 }
 
 export function makeChunkedFile<
@@ -32,7 +34,7 @@ export function makeChunkedFile<
   },
 ): ChunkedFile<MaxChunkLength, SpanSize> {
   const maxPayloadSize = (options?.maxPayloadSize || DEFAULT_MAX_PAYLOAD_SIZE) as MaxChunkLength
-  let rootChunk: Chunk<MaxChunkLength, SpanSize>
+  let calculatedRootChunk: Chunk<MaxChunkLength, SpanSize>
 
   //splitter
   const leafChunks = () => {
@@ -45,14 +47,26 @@ export function makeChunkedFile<
   }
   // const span = () => makeSpan(payload.length, spanSize) as Span<SpanSize>
   const span = () => {
-    if (!rootChunk) rootChunk = bmtRootChunk(leafChunks())
+    if (!calculatedRootChunk) calculatedRootChunk = bmtRootChunk(leafChunks())
 
-    return rootChunk.span()
+    return calculatedRootChunk.span()
   }
   const address = () => {
-    if (!rootChunk) rootChunk = bmtRootChunk(leafChunks())
+    if (!calculatedRootChunk) calculatedRootChunk = bmtRootChunk(leafChunks())
 
-    return rootChunk.address()
+    return calculatedRootChunk.address()
+  }
+  const rootChunk = () => {
+    if (!calculatedRootChunk) calculatedRootChunk = bmtRootChunk(leafChunks())
+
+    return calculatedRootChunk
+  }
+
+  const bmtTreeFn = () => {
+    const tree = bmtTree(leafChunks())
+    calculatedRootChunk = tree[tree.length - 1][0]
+
+    return tree
   }
 
   return {
@@ -60,7 +74,26 @@ export function makeChunkedFile<
     span,
     leafChunks,
     address,
+    rootChunk,
+    bmtTree: bmtTreeFn,
   }
+}
+
+function bmtTree<
+  MaxChunkLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
+  SpanSize extends number = typeof DEFAULT_SPAN_SIZE,
+>(leafChunks: Chunk<MaxChunkLength, SpanSize>[]): Chunk<MaxChunkLength, SpanSize>[][] {
+  if (leafChunks.length === 0) {
+    throw new Error(`given chunk array is empty`)
+  }
+
+  // zero level assign
+  const levelChunks: Chunk<MaxChunkLength, SpanSize>[][] = [leafChunks]
+  while (levelChunks[levelChunks.length - 1].length !== 1) {
+    levelChunks.push(nextBmtLevel(levelChunks[levelChunks.length - 1]))
+  }
+
+  return levelChunks
 }
 
 function bmtRootChunk<
@@ -95,7 +128,7 @@ function nextBmtLevel<
 
   for (let offset = 0; offset < chunks.length; offset += maxSegmentCount) {
     const childrenChunks = chunks.slice(offset, offset + maxSegmentCount)
-    const chunkAddresses = childrenChunks.map(chunk => keccak256Hash(chunk.span(), chunk.address()))
+    const chunkAddresses = childrenChunks.map(chunk => chunk.address())
     const chunkSpanSumValues = childrenChunks
       .map(chunk => getSpanValue(chunk.span()))
       .reduce((prev, curr) => prev + curr)
