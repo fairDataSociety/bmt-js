@@ -1,5 +1,5 @@
 import { keccak256 } from 'js-sha3'
-import { DEFAULT_SPAN_SIZE, makeSpan } from './span'
+import { DEFAULT_SPAN_SIZE, makeSpan, Span } from './span'
 import { assertFlexBytes, Bytes, keccak256Hash, Flavor, FlexBytes, serializeBytes } from './utils'
 
 export const SEGMENT_SIZE = 32
@@ -42,18 +42,18 @@ export function makeChunk<
   // typescript does not recognise subset relation on union type definition
   const maxPayloadSize = (options?.maxPayloadSize || DEFAULT_MAX_PAYLOAD_SIZE) as MaxPayloadSize
   const spanSize = (options?.spanSize || DEFAULT_SPAN_SIZE) as SpanSize
-  // const startingSpanValue = options?.startingSpanValue || 0
+  const spanValue = options?.startingSpanValue || payloadBytes.length
 
   assertFlexBytes(payloadBytes, 1, maxPayloadSize)
   const paddingChunkLength = new Uint8Array(maxPayloadSize - payloadBytes.length)
-  const spanFn = () => makeSpan(options?.startingSpanValue || payloadBytes.length, spanSize)
+  const spanFn = () => makeSpan(spanValue, spanSize)
   const dataFn = () => serializeBytes(payloadBytes, new Uint8Array(paddingChunkLength)) as ValidChunkData
 
   return {
     payload: payloadBytes,
     data: dataFn,
     span: spanFn,
-    address: () => bmtHash(payloadBytes),
+    address: () => bmtHash(payloadBytes, spanSize, spanFn()),
     maxDataLength: maxPayloadSize,
     spanSize: spanSize,
   }
@@ -73,8 +73,12 @@ export function makeChunk<
  *
  * @returns the keccak256 hash in a byte array
  */
-export function bmtHash(payload: Uint8Array): Bytes<32> {
-  const span = makeSpan(payload.length)
+export function bmtHash<SpanSize extends number = typeof DEFAULT_SPAN_SIZE>(
+  payload: Uint8Array,
+  spanSize?: SpanSize,
+  chunkSpan?: Span<SpanSize>,
+): Bytes<32> {
+  const span = chunkSpan || makeSpan(payload.length, spanSize)
   const rootHash = bmtRootHash(payload)
   const chunkHashInput = new Uint8Array([...span, ...rootHash])
   const chunkHash = keccak256Hash(chunkHashInput)
@@ -82,7 +86,7 @@ export function bmtHash(payload: Uint8Array): Bytes<32> {
   return chunkHash
 }
 
-function bmtRootHash(payload: Uint8Array): Uint8Array {
+export function bmtRootHash(payload: Uint8Array): Uint8Array {
   if (payload.length > DEFAULT_MAX_PAYLOAD_SIZE) {
     throw new Error(`invalid data length ${payload}`)
   }
