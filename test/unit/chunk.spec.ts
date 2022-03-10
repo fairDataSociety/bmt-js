@@ -1,7 +1,5 @@
 import { bmtHash, Utils, makeChunk, bmtTree, inclusionProofBottomUp, makeSpan } from '../../src'
-import { bytesToHex, keccak256Hash } from '../../src/utils'
-import FS from 'fs'
-import path from 'path'
+import { keccak256Hash } from '../../src/utils'
 
 describe('chunk', () => {
   const payload = new Uint8Array([1, 2, 3])
@@ -44,15 +42,5 @@ describe('chunk', () => {
       calculatedRootHash = keccak256Hash(sisterSegment)
     }
     expect(keccak256Hash(makeSpan(payload.length), calculatedRootHash)).toStrictEqual(bmtHashOfPayload)
-  })
-
-  it('should give back the same content address like the Bee', () => {
-    const fileBytes = Uint8Array.from(FS.readFileSync(path.join(__dirname, '..', 'test-files', 'text.txt')))
-
-    const chunk = makeChunk(fileBytes)
-
-    expect(bytesToHex(chunk.address(), 64)).toStrictEqual(
-      'c6f3e5b376b99b627aed43708eba5e225800ebdae07b9acd36521d329a2212bb',
-    )
   })
 })
