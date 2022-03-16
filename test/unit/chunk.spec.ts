@@ -1,4 +1,12 @@
-import { bmtHash, Utils, makeChunk, bmtTree, inclusionProofBottomUp, makeSpan } from '../../src'
+import {
+  bmtHash,
+  Utils,
+  makeChunk,
+  bmtTree,
+  makeSpan,
+  SEGMENT_SIZE,
+  rootHashFromInclusionProof,
+} from '../../src'
 import { keccak256Hash } from '../../src/utils'
 
 describe('chunk', () => {
@@ -31,16 +39,28 @@ describe('chunk', () => {
   })
 
   it('should retrieve the required segment pairs for inclusion proof', () => {
+    const chunk = makeChunk(payload)
     const tree = bmtTree(payload)
     const bmtHashOfPayload = bmtHash(payload)
     expect(tree.length).toBe(8)
-    const { sisterSegments, rootHash } = inclusionProofBottomUp(payload, 2)
-    expect(keccak256Hash(makeSpan(payload.length), rootHash)).toStrictEqual(bmtHashOfPayload)
+    /** Gives back the bmt root hash calculated from the inclusion proof method */
+    const testGetRootHash = (segmentIndex: number): Uint8Array => {
+      const inclusionProofSegments = chunk.inclusionProof(segmentIndex)
+      const rootHash = rootHashFromInclusionProof(
+        inclusionProofSegments,
+        chunk.data().slice(segmentIndex * SEGMENT_SIZE, segmentIndex * SEGMENT_SIZE + SEGMENT_SIZE),
+        segmentIndex,
+      )
 
-    let calculatedRootHash: Uint8Array
-    for (const sisterSegment of sisterSegments) {
-      calculatedRootHash = keccak256Hash(sisterSegment)
+      return rootHash
     }
-    expect(keccak256Hash(makeSpan(payload.length), calculatedRootHash)).toStrictEqual(bmtHashOfPayload)
+    const rootHash1 = testGetRootHash(0)
+    expect(keccak256Hash(makeSpan(payload.length), rootHash1)).toStrictEqual(bmtHashOfPayload)
+    const rootHash2 = testGetRootHash(101)
+    expect(rootHash2).toStrictEqual(rootHash1)
+    const rootHash3 = testGetRootHash(127)
+    expect(rootHash3).toStrictEqual(rootHash1)
+
+    expect(() => testGetRootHash(128)).toThrow()
   })
 })
