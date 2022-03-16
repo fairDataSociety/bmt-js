@@ -8,7 +8,7 @@ import {
   SEGMENT_SIZE,
   Span,
 } from '.'
-import { Flavor, serializeBytes } from './utils'
+import { Bytes, Flavor, keccak256Hash, serializeBytes } from './utils'
 
 export interface ChunkedFile<
   MaxChunkLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
@@ -77,6 +77,11 @@ export function makeChunkedFile<
     rootChunk,
     bmtTree: bmtTreeFn,
   }
+}
+
+export interface ChunkInclusionProof<SpanSize extends number = typeof DEFAULT_SPAN_SIZE> {
+  span: Bytes<SpanSize>
+  sisterSegments: Uint8Array[]
 }
 
 function bmtTree<
@@ -208,4 +213,64 @@ function popCarrierChunk<
   const maxSegmentCount = maxDataLength / SEGMENT_SIZE
 
   return chunks.length % maxSegmentCount === 1 ? chunks.pop() || null : null
+}
+
+/**
+ * Gives back required segments for inclusion proof of a given payload byte index
+ */
+export function fileInclusionProofBottomUp<
+  MaxChunkLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
+  SpanSize extends number = typeof DEFAULT_SPAN_SIZE,
+>(chunkedFile: ChunkedFile<MaxChunkLength, SpanSize>, segmentIndex: number): ChunkInclusionProof<SpanSize>[] {
+  if (segmentIndex * SEGMENT_SIZE >= getSpanValue(chunkedFile.span())) {
+    throw new Error(
+      `The given segment index ${segmentIndex * SEGMENT_SIZE} is greater than ${getSpanValue(
+        chunkedFile.span(),
+      )}`,
+    )
+  }
+
+  let levelChunks = chunkedFile.leafChunks()
+  const maxChunkPayload = levelChunks[0].maxDataLength
+  const maxSegmentCount = maxChunkPayload / SEGMENT_SIZE // default 128
+  let carrierChunk = popCarrierChunk(levelChunks)
+
+  const chunkInclusionProofs: ChunkInclusionProof<SpanSize>[] = []
+  while (levelChunks.length !== 1 || carrierChunk) {
+    const chunkIndexForProof = Math.floor(segmentIndex / maxSegmentCount)
+    const chunk = levelChunks[chunkIndexForProof]
+    const chunkSegmentIndex = segmentIndex % maxSegmentCount
+    const sisterSegments = chunk.inclusionProof(chunkSegmentIndex)
+
+    chunkInclusionProofs.push({ sisterSegments, span: chunk.span() })
+    segmentIndex = chunkIndexForProof
+
+    const { nextLevelChunks, nextLevelCarrierChunk } = nextBmtLevel(levelChunks, carrierChunk)
+    levelChunks = nextLevelChunks
+    carrierChunk = nextLevelCarrierChunk
+  }
+  const sisterSegments = levelChunks[0].inclusionProof(segmentIndex)
+  chunkInclusionProofs.push({ sisterSegments, span: levelChunks[0].span() })
+
+  return chunkInclusionProofs
+}
+
+export function fileHashFromInclusionProof<SpanSize extends number = typeof DEFAULT_SPAN_SIZE>(
+  proveChunks: ChunkInclusionProof<SpanSize>[],
+  proveSegment: Uint8Array,
+  proveSegmentIndex: number,
+): Uint8Array {
+  let calculatedHash = proveSegment
+  for (const proveChunk of proveChunks) {
+    for (const proofSegment of proveChunk.sisterSegments) {
+      const mergeSegmentFromRight = proveSegmentIndex % 2 === 0 ? true : false
+      calculatedHash = mergeSegmentFromRight
+        ? keccak256Hash(calculatedHash, proofSegment)
+        : keccak256Hash(proofSegment, calculatedHash)
+      proveSegmentIndex = Math.floor(proveSegmentIndex / 2)
+    }
+    calculatedHash = keccak256Hash(proveChunk.span, calculatedHash)
+  }
+
+  return calculatedHash
 }
