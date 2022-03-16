@@ -103,3 +103,9 @@ export function bytesToHex<Length extends number>(bytes: Uint8Array, len: Length
 
   return hex
 }
+
+export function equalBytes(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false
+
+  return a.every((byte, index) => b[index] === byte)
+}
