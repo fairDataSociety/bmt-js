@@ -1,10 +1,16 @@
-import { getSpanValue, makeChunkedFile, SEGMENT_SIZE } from '../../src'
+import {
+  fileHashFromInclusionProof,
+  fileInclusionProofBottomUp,
+  getSpanValue,
+  makeChunkedFile,
+  SEGMENT_SIZE,
+} from '../../src'
 import FS from 'fs'
 import path from 'path'
 import { bytesToHex } from '../../src/utils'
 
 describe('file', () => {
-  it('should work with lesser than 4KB of data', () => {
+  xit('should work with lesser than 4KB of data', () => {
     const payload = new Uint8Array([1, 2, 3])
 
     const chunkedFile = makeChunkedFile(payload)
@@ -18,7 +24,7 @@ describe('file', () => {
     expect(onlyChunk.address()).toStrictEqual(chunkedFile.address())
   })
 
-  it('should work with greater than 4KB of data', () => {
+  xit('should work with greater than 4KB of data', () => {
     const fileBytes = Uint8Array.from(
       FS.readFileSync(path.join(__dirname, '..', 'test-files', 'The-Book-of-Swarm.pdf')),
     )
@@ -47,5 +53,26 @@ describe('file', () => {
     expect(bytesToHex(chunkedFile.address(), 64)).toStrictEqual(
       'b8d17f296190ccc09a2c36b7a59d0f23c4479a3958c3bb02dc669466ec919c5d', //bee generated hash
     )
+  })
+
+  it('should collect the required segments for inclusion proof', () => {
+    const fileBytes = Uint8Array.from(
+      FS.readFileSync(path.join(__dirname, '..', 'test-files', 'The-Book-of-Swarm.pdf')),
+    )
+    const chunkedFile = makeChunkedFile(fileBytes)
+    const fileHash = chunkedFile.address()
+
+    /** Gives back the file hash calculated from the inclusion proof method */
+    const testGetFileHash = (segmentIndex: number): Uint8Array => {
+      const proofChunks = fileInclusionProofBottomUp(chunkedFile, segmentIndex)
+
+      return fileHashFromInclusionProof(
+        proofChunks,
+        fileBytes.slice(segmentIndex * SEGMENT_SIZE, segmentIndex * SEGMENT_SIZE + SEGMENT_SIZE),
+        segmentIndex,
+      )
+    }
+    const hash1 = testGetFileHash(1000)
+    expect(hash1).toStrictEqual(fileHash)
   })
 })
