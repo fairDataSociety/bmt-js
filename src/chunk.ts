@@ -20,6 +20,7 @@ export interface Chunk<
   address(): ChunkAddress
   maxDataLength: MaxLength
   spanSize: SpanSize
+  inclusionProof(segmentIndex: number): Uint8Array[]
 }
 
 /**
@@ -48,6 +49,7 @@ export function makeChunk<
   const paddingChunkLength = new Uint8Array(maxPayloadSize - payloadBytes.length)
   const spanFn = () => makeSpan(spanValue, spanSize)
   const dataFn = () => serializeBytes(payloadBytes, new Uint8Array(paddingChunkLength)) as ValidChunkData
+  const inclusionProofFn = (segmentIndex: number) => inclusionProofBottomUp(dataFn(), segmentIndex)
 
   return {
     payload: payloadBytes,
@@ -55,7 +57,8 @@ export function makeChunk<
     span: spanFn,
     address: () => bmtHash(payloadBytes, spanSize, spanFn()),
     maxDataLength: maxPayloadSize,
-    spanSize: spanSize,
+    spanSize,
+    inclusionProof: inclusionProofFn,
   }
 }
 
@@ -142,34 +145,51 @@ export function bmtTree(payload: Uint8Array): Uint8Array[] {
 }
 
 /**
- * Gives back required inclusion proof segment pairs for a byte index of the given payload byte array
+ * Gives back required segments for inclusion proof of a given payload byte index
  *
- * @param payloadBytes data initialised in Uint8Array object
- * @param payloadBytesIndex byte index in the data array that has to be proofed for inclusion
- * @returns Required merged segment pairs for inclusion proofing starting from the data level and
- * the root hash of the payload
+ * @param payloadBytes chunk data initialised in Uint8Array object
+ * @param segmentIndex segment index in the data array that has to be proofed for inclusion
+ * @returns Required segments for inclusion proof starting from the data level
+ * until the BMT root hash of the payload
  */
-export function inclusionProofBottomUp(
-  payloadBytes: Uint8Array,
-  payloadBytesIndex: number,
-): { sisterSegments: Uint8Array[]; rootHash: Uint8Array } {
-  if (payloadBytesIndex >= payloadBytes.length) {
-    throw new Error(`The given segment index ${payloadBytesIndex} is greater than the payloadbyte length`)
+export function inclusionProofBottomUp(payloadBytes: Uint8Array, segmentIndex: number): Uint8Array[] {
+  if (segmentIndex * SEGMENT_SIZE >= payloadBytes.length) {
+    throw new Error(
+      `The given segment index ${segmentIndex} is greater than ${payloadBytes.length / SEGMENT_SIZE}`,
+    )
   }
 
   const tree = bmtTree(payloadBytes)
   const sisterSegments: Array<Uint8Array> = []
-  let segmentIndex = Math.floor(payloadBytesIndex / SEGMENT_SIZE)
   const rootHashLevel = tree.length - 1
   for (let level = 0; level < rootHashLevel; level++) {
     const mergeCoefficient = segmentIndex % 2 === 0 ? 1 : -1
-    const sisterSegmentIndex = segmentIndex + SEGMENT_SIZE * mergeCoefficient
-    const startIndex = sisterSegmentIndex < segmentIndex ? sisterSegmentIndex : segmentIndex
-    const segments = tree[level].slice(startIndex, startIndex + SEGMENT_PAIR_SIZE)
-    sisterSegments.push(segments)
+    const sisterSegmentIndex = segmentIndex + mergeCoefficient
+    const sisterSegment = tree[level].slice(
+      sisterSegmentIndex * SEGMENT_SIZE,
+      (sisterSegmentIndex + 1) * SEGMENT_SIZE,
+    )
+    sisterSegments.push(sisterSegment)
     //segmentIndex for the next iteration
     segmentIndex = Math.floor(segmentIndex / 2)
   }
 
-  return { sisterSegments, rootHash: tree[rootHashLevel] }
+  return sisterSegments
+}
+
+export function rootHashFromInclusionProof(
+  proofSegments: Uint8Array[],
+  proveSegment: Uint8Array,
+  proveSegmentIndex: number,
+): Uint8Array {
+  let calculatedHash = proveSegment
+  for (const proofSegment of proofSegments) {
+    const mergeSegmentFromRight = proveSegmentIndex % 2 === 0 ? true : false
+    calculatedHash = mergeSegmentFromRight
+      ? keccak256Hash(calculatedHash, proofSegment)
+      : keccak256Hash(proofSegment, calculatedHash)
+    proveSegmentIndex = Math.floor(proveSegmentIndex / 2)
+  }
+
+  return calculatedHash
 }
