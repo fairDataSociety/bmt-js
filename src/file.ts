@@ -153,20 +153,12 @@ function nextBmtLevel<
   }
 
   //edge case handling when there is carrierChunk
-  const lastChunkOnNextLevel = nextLevelChunks[nextLevelChunks.length - 1]
   let nextLevelCarrierChunk = carrierChunk
 
   if (carrierChunk) {
     // try to merge carrier chunk if it first to its parents payload
-    if (lastChunkOnNextLevel.payload.length < maxDataLength) {
-      nextLevelChunks[nextLevelChunks.length - 1] = makeChunk(
-        new Uint8Array([...lastChunkOnNextLevel.payload, ...carrierChunk.address()]),
-        {
-          spanSize,
-          startingSpanValue: getSpanValue(lastChunkOnNextLevel.span()) + getSpanValue(carrierChunk.span()),
-          maxPayloadSize: maxDataLength,
-        },
-      )
+    if (nextLevelChunks.length % 128 !== 0) {
+      nextLevelChunks.push(carrierChunk)
       nextLevelCarrierChunk = null //merged
     } // or nextLevelCarrierChunk remains carrierChunk
   } else {
@@ -233,15 +225,35 @@ export function fileInclusionProofBottomUp<
   let levelChunks = chunkedFile.leafChunks()
   const maxChunkPayload = levelChunks[0].maxDataLength
   const maxSegmentCount = maxChunkPayload / SEGMENT_SIZE // default 128
+  const chunkSegmentIndex = segmentIndex % maxSegmentCount
   let carrierChunk = popCarrierChunk(levelChunks)
-
   const chunkInclusionProofs: ChunkInclusionProof<SpanSize>[] = []
   while (levelChunks.length !== 1 || carrierChunk) {
-    const chunkIndexForProof = Math.floor(segmentIndex / maxSegmentCount)
-    const chunk = levelChunks[chunkIndexForProof]
-    const chunkSegmentIndex = segmentIndex % maxSegmentCount
-    const sisterSegments = chunk.inclusionProof(chunkSegmentIndex)
+    let chunkIndexForProof = Math.floor(segmentIndex / maxSegmentCount)
 
+    //edge-case carrier chunk
+    if (chunkIndexForProof === levelChunks.length) {
+      //carrier chunk has been placed to somewhere else in the bmtTree
+      if (!carrierChunk) throw new Error('Impossible')
+      segmentIndex >>>= 7 //log2(128) -> skip this level check now
+      do {
+        const {
+          nextLevelChunks,
+          nextLevelCarrierChunk,
+        }: {
+          nextLevelChunks: Chunk<MaxChunkLength, SpanSize>[]
+          nextLevelCarrierChunk: Chunk<MaxChunkLength, SpanSize> | null
+        } = nextBmtLevel(levelChunks, carrierChunk)
+        levelChunks = nextLevelChunks
+        carrierChunk = nextLevelCarrierChunk
+        segmentIndex >>>= 7 //log2(128)
+      } while (segmentIndex % maxSegmentCount === 0)
+      // the carrier chunk is already placed in the BMT tree
+      chunkIndexForProof = levelChunks.length - 1
+      // continue the inclusion proofing of the inserted carrierChunk address
+    }
+    const chunk = levelChunks[chunkIndexForProof]
+    const sisterSegments = chunk.inclusionProof(chunkSegmentIndex)
     chunkInclusionProofs.push({ sisterSegments, span: chunk.span() })
     segmentIndex = chunkIndexForProof
 
@@ -260,8 +272,10 @@ export function fileHashFromInclusionProof<SpanSize extends number = typeof DEFA
   proveSegment: Uint8Array,
   proveSegmentIndex: number,
 ): Uint8Array {
+  const fileSize = getSpanValue(proveChunks[proveChunks.length - 1].span)
   let calculatedHash = proveSegment
   for (const proveChunk of proveChunks) {
+    const { chunkIndex: parentChunkIndex } = getSegmentIndexAndLevelInTree(proveSegmentIndex, fileSize)
     for (const proofSegment of proveChunk.sisterSegments) {
       const mergeSegmentFromRight = proveSegmentIndex % 2 === 0 ? true : false
       calculatedHash = mergeSegmentFromRight
@@ -270,7 +284,35 @@ export function fileHashFromInclusionProof<SpanSize extends number = typeof DEFA
       proveSegmentIndex = Math.floor(proveSegmentIndex / 2)
     }
     calculatedHash = keccak256Hash(proveChunk.span, calculatedHash)
+    // this line is necessary if the proveSegmentIndex
+    // was in a carrierChunk
+    proveSegmentIndex = parentChunkIndex
   }
 
   return calculatedHash
+}
+
+/** Get chunk ID in the BMT tree */
+export function getSegmentIndexAndLevelInTree(
+  segmentIndex: number,
+  spanValue: number,
+  maxChunkPayloadByteLength = 4096,
+): { level: number; chunkIndex: number } {
+  const maxSegmentCount = maxChunkPayloadByteLength / SEGMENT_SIZE
+  // the saturated byte length in the BMT tree (on the left)
+  const fullBytesLength = spanValue - (spanValue % maxChunkPayloadByteLength)
+  // the saturated segments length in the BMT tree (on the left)
+  const fullSegmentsLength = fullBytesLength / SEGMENT_SIZE
+  let level = 0
+  if (segmentIndex >= fullSegmentsLength && segmentIndex < fullSegmentsLength + maxSegmentCount) {
+    do {
+      segmentIndex >>>= 7
+      level++
+    } while (segmentIndex % SEGMENT_SIZE === 0)
+    level--
+  } else {
+    segmentIndex >>>= 7
+  }
+
+  return { chunkIndex: segmentIndex, level }
 }
