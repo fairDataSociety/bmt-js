@@ -171,7 +171,7 @@ export function inclusionProofBottomUp(payloadBytes: Uint8Array, segmentIndex: n
     )
     sisterSegments.push(sisterSegment)
     //segmentIndex for the next iteration
-    segmentIndex = Math.floor(segmentIndex / 2)
+    segmentIndex >>>= 1
   }
 
   return sisterSegments
@@ -188,7 +188,7 @@ export function rootHashFromInclusionProof(
     calculatedHash = mergeSegmentFromRight
       ? keccak256Hash(calculatedHash, proofSegment)
       : keccak256Hash(proofSegment, calculatedHash)
-    proveSegmentIndex = Math.floor(proveSegmentIndex / 2)
+    proveSegmentIndex >>>= 1
   }
 
   return calculatedHash
