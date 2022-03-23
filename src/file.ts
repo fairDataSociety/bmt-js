@@ -225,10 +225,10 @@ export function fileInclusionProofBottomUp<
   let levelChunks = chunkedFile.leafChunks()
   const maxChunkPayload = levelChunks[0].maxDataLength
   const maxSegmentCount = maxChunkPayload / SEGMENT_SIZE // default 128
-  const chunkSegmentIndex = segmentIndex % maxSegmentCount
   let carrierChunk = popCarrierChunk(levelChunks)
   const chunkInclusionProofs: ChunkInclusionProof<SpanSize>[] = []
   while (levelChunks.length !== 1 || carrierChunk) {
+    const chunkSegmentIndex = segmentIndex % maxSegmentCount
     let chunkIndexForProof = Math.floor(segmentIndex / maxSegmentCount)
 
     //edge-case carrier chunk
