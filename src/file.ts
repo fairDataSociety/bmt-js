@@ -144,7 +144,7 @@ function nextBmtLevel<
   const maxDataLength = chunks[0].maxDataLength
   const spanSize = chunks[0].spanSize
   // max segment count in one chunk. the segment size have to be equal to the chunk addresses
-  const maxSegmentCount = maxDataLength / SEGMENT_SIZE
+  const maxSegmentCount = maxDataLength / SEGMENT_SIZE //128 by default
   const nextLevelChunks: Chunk<MaxChunkLength, SpanSize>[] = []
 
   for (let offset = 0; offset < chunks.length; offset += maxSegmentCount) {
@@ -157,7 +157,7 @@ function nextBmtLevel<
 
   if (carrierChunk) {
     // try to merge carrier chunk if it first to its parents payload
-    if (nextLevelChunks.length % 128 !== 0) {
+    if (nextLevelChunks.length % maxSegmentCount !== 0) {
       nextLevelChunks.push(carrierChunk)
       nextLevelCarrierChunk = null //merged
     } // or nextLevelCarrierChunk remains carrierChunk
