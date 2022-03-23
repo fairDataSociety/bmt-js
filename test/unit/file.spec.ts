@@ -1,16 +1,11 @@
-import {
-  fileHashFromInclusionProof,
-  fileInclusionProofBottomUp,
-  getSpanValue,
-  makeChunkedFile,
-  SEGMENT_SIZE,
-} from '../../src'
+import { fileInclusionProofBottomUp, getSpanValue, makeChunkedFile, SEGMENT_SIZE } from '../../src'
 import FS from 'fs'
 import path from 'path'
 import { bytesToHex } from '../../src/utils'
+import { fileHashFromInclusionProof, getSegmentIndexAndLevelInTree } from '../../src/file'
 
 describe('file', () => {
-  xit('should work with lesser than 4KB of data', () => {
+  it('should work with lesser than 4KB of data', () => {
     const payload = new Uint8Array([1, 2, 3])
 
     const chunkedFile = makeChunkedFile(payload)
@@ -24,7 +19,7 @@ describe('file', () => {
     expect(onlyChunk.address()).toStrictEqual(chunkedFile.address())
   })
 
-  xit('should work with greater than 4KB of data', () => {
+  it('should work with greater than 4KB of data', () => {
     const fileBytes = Uint8Array.from(
       FS.readFileSync(path.join(__dirname, '..', 'test-files', 'The-Book-of-Swarm.pdf')),
     )
@@ -55,24 +50,57 @@ describe('file', () => {
     )
   })
 
+  it('should find BMT position of the payload segment index', () => {
+    //edge case - carrier chunk
+    const fileBytes = Uint8Array.from(
+      FS.readFileSync(path.join(__dirname, '..', 'test-files', 'carrier-chunk-blob')),
+    )
+    const chunkedFile = makeChunkedFile(fileBytes)
+    const tree = chunkedFile.bmtTree()
+    const leafChunks = chunkedFile.leafChunks()
+    // check whether the last chunk is not present in the BMT tree 0 level -> carrierChunk
+    expect(tree[0].length).toBe(leafChunks.length - 1)
+    const carrierChunk = leafChunks.pop()
+    const segmentIndex = Math.floor((fileBytes.length - 1) / 32)
+    const segmentIdInTree = getSegmentIndexAndLevelInTree(segmentIndex, fileBytes.length)
+    expect(tree[segmentIdInTree.level][segmentIdInTree.chunkIndex].address()).toStrictEqual(
+      carrierChunk.address(),
+    )
+  })
+
   it('should collect the required segments for inclusion proof', () => {
     const fileBytes = Uint8Array.from(
-      FS.readFileSync(path.join(__dirname, '..', 'test-files', 'The-Book-of-Swarm.pdf')),
+      FS.readFileSync(path.join(__dirname, '..', 'test-files', 'carrier-chunk-blob')),
     )
     const chunkedFile = makeChunkedFile(fileBytes)
     const fileHash = chunkedFile.address()
+    // segment to prove
+    const segmentIndex = Math.floor((fileBytes.length - 1) / 32)
+
+    // check segment array length for carrierChunk inclusion proof
+    const proofChunks = fileInclusionProofBottomUp(chunkedFile, segmentIndex)
+    expect(proofChunks.length).toBe(2) // 1 level is skipped because the segment was in a carrierChunk
 
     /** Gives back the file hash calculated from the inclusion proof method */
     const testGetFileHash = (segmentIndex: number): Uint8Array => {
       const proofChunks = fileInclusionProofBottomUp(chunkedFile, segmentIndex)
-
-      return fileHashFromInclusionProof(
-        proofChunks,
-        fileBytes.slice(segmentIndex * SEGMENT_SIZE, segmentIndex * SEGMENT_SIZE + SEGMENT_SIZE),
-        segmentIndex,
+      let proveSegment = fileBytes.slice(
+        segmentIndex * SEGMENT_SIZE,
+        segmentIndex * SEGMENT_SIZE + SEGMENT_SIZE,
       )
+      //padding
+      proveSegment = new Uint8Array([...proveSegment, ...new Uint8Array(SEGMENT_SIZE - proveSegment.length)])
+
+      // check the last segment has the correct span value.
+      const fileSizeFromProof = getSpanValue(proofChunks[proofChunks.length - 1].span)
+      expect(fileSizeFromProof).toBe(fileBytes.length)
+
+      return fileHashFromInclusionProof(proofChunks, proveSegment, segmentIndex)
     }
-    const hash1 = testGetFileHash(1000)
+    // edge case
+    const hash1 = testGetFileHash(segmentIndex)
     expect(hash1).toStrictEqual(fileHash)
+    const hash2 = testGetFileHash(1000)
+    expect(hash2).toStrictEqual(fileHash)
   })
 })
