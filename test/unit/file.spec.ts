@@ -2,7 +2,7 @@ import { fileInclusionProofBottomUp, getSpanValue, makeChunkedFile, SEGMENT_SIZE
 import FS from 'fs'
 import path from 'path'
 import { bytesToHex } from '../../src/utils'
-import { fileHashFromInclusionProof, getSegmentIndexAndLevelInTree } from '../../src/file'
+import { fileAddressFromInclusionProof, getBmtIndexOfSegment } from '../../src/file'
 
 describe('file', () => {
   it('should work with lesser than 4KB of data', () => {
@@ -62,7 +62,7 @@ describe('file', () => {
     expect(tree[0].length).toBe(leafChunks.length - 1)
     const carrierChunk = leafChunks.pop()
     const segmentIndex = Math.floor((fileBytes.length - 1) / 32)
-    const segmentIdInTree = getSegmentIndexAndLevelInTree(segmentIndex, fileBytes.length)
+    const segmentIdInTree = getBmtIndexOfSegment(segmentIndex, fileBytes.length)
     expect(tree[segmentIdInTree.level][segmentIdInTree.chunkIndex].address()).toStrictEqual(
       carrierChunk.address(),
     )
@@ -95,7 +95,7 @@ describe('file', () => {
       const fileSizeFromProof = getSpanValue(proofChunks[proofChunks.length - 1].span)
       expect(fileSizeFromProof).toBe(fileBytes.length)
 
-      return fileHashFromInclusionProof(proofChunks, proveSegment, segmentIndex)
+      return fileAddressFromInclusionProof(proofChunks, proveSegment, segmentIndex)
     }
     // edge case
     const hash1 = testGetFileHash(segmentIndex)

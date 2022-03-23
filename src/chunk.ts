@@ -11,15 +11,15 @@ export type ChunkAddress = Bytes<32>
 type ValidChunkData = Uint8Array & Flavor<'ValidChunkData'>
 
 export interface Chunk<
-  MaxLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
-  SpanSize extends number = typeof DEFAULT_SPAN_SIZE,
+  MaxPayloadLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
+  SpanLength extends number = typeof DEFAULT_SPAN_SIZE,
 > extends Flavor<'Chunk'> {
-  readonly payload: FlexBytes<1, MaxLength>
+  readonly payload: FlexBytes<1, MaxPayloadLength>
   data(): ValidChunkData
-  span(): Bytes<SpanSize>
+  span(): Bytes<SpanLength>
   address(): ChunkAddress
-  maxDataLength: MaxLength
-  spanSize: SpanSize
+  maxPayloadLength: MaxPayloadLength
+  spanLength: SpanLength
   inclusionProof(segmentIndex: number): Uint8Array[]
 }
 
@@ -30,24 +30,24 @@ export interface Chunk<
  */
 export function makeChunk<
   MaxPayloadSize extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
-  SpanSize extends number = typeof DEFAULT_SPAN_SIZE,
+  SpanLength extends number = typeof DEFAULT_SPAN_SIZE,
 >(
   payloadBytes: Uint8Array,
   options?: {
     maxPayloadSize?: MaxPayloadSize
-    spanSize?: SpanSize
+    spanLength?: SpanLength
     startingSpanValue?: number
   },
-): Chunk<MaxPayloadSize, SpanSize> {
+): Chunk<MaxPayloadSize, SpanLength> {
   // assertion for the sizes are required because
   // typescript does not recognise subset relation on union type definition
-  const maxPayloadSize = (options?.maxPayloadSize || DEFAULT_MAX_PAYLOAD_SIZE) as MaxPayloadSize
-  const spanSize = (options?.spanSize || DEFAULT_SPAN_SIZE) as SpanSize
+  const maxPayloadLength = (options?.maxPayloadSize || DEFAULT_MAX_PAYLOAD_SIZE) as MaxPayloadSize
+  const spanLength = (options?.spanLength || DEFAULT_SPAN_SIZE) as SpanLength
   const spanValue = options?.startingSpanValue || payloadBytes.length
 
-  assertFlexBytes(payloadBytes, 1, maxPayloadSize)
-  const paddingChunkLength = new Uint8Array(maxPayloadSize - payloadBytes.length)
-  const spanFn = () => makeSpan(spanValue, spanSize)
+  assertFlexBytes(payloadBytes, 1, maxPayloadLength)
+  const paddingChunkLength = new Uint8Array(maxPayloadLength - payloadBytes.length)
+  const spanFn = () => makeSpan(spanValue, spanLength)
   const dataFn = () => serializeBytes(payloadBytes, new Uint8Array(paddingChunkLength)) as ValidChunkData
   const inclusionProofFn = (segmentIndex: number) => inclusionProofBottomUp(dataFn(), segmentIndex)
 
@@ -55,9 +55,9 @@ export function makeChunk<
     payload: payloadBytes,
     data: dataFn,
     span: spanFn,
-    address: () => bmtHash(payloadBytes, spanSize, spanFn()),
-    maxDataLength: maxPayloadSize,
-    spanSize,
+    address: () => bmtHash(payloadBytes, spanLength, spanFn()),
+    maxPayloadLength,
+    spanLength,
     inclusionProof: inclusionProofFn,
   }
 }
@@ -76,12 +76,12 @@ export function makeChunk<
  *
  * @returns the keccak256 hash in a byte array
  */
-export function bmtHash<SpanSize extends number = typeof DEFAULT_SPAN_SIZE>(
+export function bmtHash<SpanLength extends number = typeof DEFAULT_SPAN_SIZE>(
   payload: Uint8Array,
-  spanSize?: SpanSize,
-  chunkSpan?: Span<SpanSize>,
+  spanLength?: SpanLength,
+  chunkSpan?: Span<SpanLength>,
 ): Bytes<32> {
-  const span = chunkSpan || makeSpan(payload.length, spanSize)
+  const span = chunkSpan || makeSpan(payload.length, spanLength)
   const rootHash = bmtRootHash(payload)
   const chunkHashInput = new Uint8Array([...span, ...rootHash])
   const chunkHash = keccak256Hash(chunkHashInput)

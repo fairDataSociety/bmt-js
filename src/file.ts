@@ -10,42 +10,54 @@ import {
 } from '.'
 import { Bytes, Flavor, keccak256Hash, serializeBytes } from './utils'
 
-export interface ChunkedFile<
-  MaxChunkLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
-  SpanSize extends number = typeof DEFAULT_SPAN_SIZE,
-> extends Flavor<'ChunkedFile'> {
-  // zero level data chunks
-  leafChunks(): Chunk<MaxChunkLength, SpanSize>[]
-  rootChunk(): Chunk<MaxChunkLength, SpanSize>
-  payload: Uint8Array
-  address(): ChunkAddress
-  span(): Span<SpanSize>
-  bmtTree(): Chunk<MaxChunkLength, SpanSize>[][]
+export interface ChunkInclusionProof<SpanLength extends number = typeof DEFAULT_SPAN_SIZE> {
+  span: Bytes<SpanLength>
+  sisterSegments: Uint8Array[]
 }
 
+export interface ChunkedFile<
+  MaxChunkPayloadLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
+  SpanLength extends number = typeof DEFAULT_SPAN_SIZE,
+> extends Flavor<'ChunkedFile'> {
+  // zero level data chunks
+  leafChunks(): Chunk<MaxChunkPayloadLength, SpanLength>[]
+  rootChunk(): Chunk<MaxChunkPayloadLength, SpanLength>
+  payload: Uint8Array
+  address(): ChunkAddress
+  span(): Span<SpanLength>
+  bmtTree(): Chunk<MaxChunkPayloadLength, SpanLength>[][]
+}
+
+/**
+ * Creates object for performing BMT functions on payload data
+ *
+ * @param payload byte array of the data
+ * @param options settings for the used chunks
+ * @returns ChunkedFile object with helper methods
+ */
 export function makeChunkedFile<
-  MaxChunkLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
-  SpanSize extends number = typeof DEFAULT_SPAN_SIZE,
+  MaxChunkPayloadLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
+  SpanLength extends number = typeof DEFAULT_SPAN_SIZE,
 >(
   payload: Uint8Array,
   options?: {
-    maxPayloadSize?: MaxChunkLength
-    spanSize?: SpanSize
+    maxPayloadSize?: MaxChunkPayloadLength
+    spanLength?: SpanLength
   },
-): ChunkedFile<MaxChunkLength, SpanSize> {
-  const maxPayloadSize = (options?.maxPayloadSize || DEFAULT_MAX_PAYLOAD_SIZE) as MaxChunkLength
-  let calculatedRootChunk: Chunk<MaxChunkLength, SpanSize>
+): ChunkedFile<MaxChunkPayloadLength, SpanLength> {
+  const maxPayloadSize = (options?.maxPayloadSize || DEFAULT_MAX_PAYLOAD_SIZE) as MaxChunkPayloadLength
+  let calculatedRootChunk: Chunk<MaxChunkPayloadLength, SpanLength>
 
   //splitter
   const leafChunks = () => {
-    const chunks: Chunk<MaxChunkLength, SpanSize>[] = []
+    const chunks: Chunk<MaxChunkPayloadLength, SpanLength>[] = []
     for (let offset = 0; offset < payload.length; offset += maxPayloadSize) {
       chunks.push(makeChunk(payload.slice(offset, offset + maxPayloadSize), options))
     }
 
     return chunks
   }
-  // const span = () => makeSpan(payload.length, spanSize) as Span<SpanSize>
+  // const span = () => makeSpan(payload.length, spanLength) as Span<SpanLength>
   const span = () => {
     if (!calculatedRootChunk) calculatedRootChunk = bmtRootChunk(leafChunks())
 
@@ -63,7 +75,7 @@ export function makeChunkedFile<
   }
 
   const bmtTreeFn = () => {
-    const tree = bmtTree(leafChunks())
+    const tree = bmt(leafChunks())
     calculatedRootChunk = tree[tree.length - 1][0]
 
     return tree
@@ -79,141 +91,20 @@ export function makeChunkedFile<
   }
 }
 
-export interface ChunkInclusionProof<SpanSize extends number = typeof DEFAULT_SPAN_SIZE> {
-  span: Bytes<SpanSize>
-  sisterSegments: Uint8Array[]
-}
-
-function bmtTree<
-  MaxChunkLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
-  SpanSize extends number = typeof DEFAULT_SPAN_SIZE,
->(leafChunks: Chunk<MaxChunkLength, SpanSize>[]): Chunk<MaxChunkLength, SpanSize>[][] {
-  if (leafChunks.length === 0) {
-    throw new Error(`given chunk array is empty`)
-  }
-
-  // data level assign
-  const levelChunks: Chunk<MaxChunkLength, SpanSize>[][] = [leafChunks]
-  let carrierChunk = popCarrierChunk(leafChunks)
-  while (levelChunks[levelChunks.length - 1].length !== 1) {
-    const { nextLevelChunks, nextLevelCarrierChunk } = nextBmtLevel(
-      levelChunks[levelChunks.length - 1],
-      carrierChunk,
-    )
-    carrierChunk = nextLevelCarrierChunk
-    levelChunks.push(nextLevelChunks)
-  }
-
-  return levelChunks
-}
-
-function bmtRootChunk<
-  MaxChunkLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
-  SpanSize extends number = typeof DEFAULT_SPAN_SIZE,
->(chunks: Chunk<MaxChunkLength, SpanSize>[]): Chunk<MaxChunkLength, SpanSize> {
-  if (chunks.length === 0) {
-    throw new Error(`given chunk array is empty`)
-  }
-
-  // zero level assign
-  let levelChunks = chunks
-  let carrierChunk = popCarrierChunk(levelChunks)
-
-  while (levelChunks.length !== 1 || carrierChunk) {
-    const { nextLevelChunks, nextLevelCarrierChunk } = nextBmtLevel(levelChunks, carrierChunk)
-    levelChunks = nextLevelChunks
-    carrierChunk = nextLevelCarrierChunk
-  }
-
-  return levelChunks[0]
-}
-
-function nextBmtLevel<
-  MaxChunkLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
-  SpanSize extends number = typeof DEFAULT_SPAN_SIZE,
->(
-  chunks: Chunk<MaxChunkLength, SpanSize>[],
-  carrierChunk: Chunk<MaxChunkLength, SpanSize> | null,
-): {
-  nextLevelChunks: Chunk<MaxChunkLength, SpanSize>[]
-  nextLevelCarrierChunk: Chunk<MaxChunkLength, SpanSize> | null
-} {
-  if (chunks.length === 0) {
-    throw new Error('The given chunk array is empty')
-  }
-  const maxDataLength = chunks[0].maxDataLength
-  const spanSize = chunks[0].spanSize
-  // max segment count in one chunk. the segment size have to be equal to the chunk addresses
-  const maxSegmentCount = maxDataLength / SEGMENT_SIZE //128 by default
-  const nextLevelChunks: Chunk<MaxChunkLength, SpanSize>[] = []
-
-  for (let offset = 0; offset < chunks.length; offset += maxSegmentCount) {
-    const childrenChunks = chunks.slice(offset, offset + maxSegmentCount)
-    nextLevelChunks.push(createParentChunk(childrenChunks, spanSize, maxDataLength))
-  }
-
-  //edge case handling when there is carrierChunk
-  let nextLevelCarrierChunk = carrierChunk
-
-  if (carrierChunk) {
-    // try to merge carrier chunk if it first to its parents payload
-    if (nextLevelChunks.length % maxSegmentCount !== 0) {
-      nextLevelChunks.push(carrierChunk)
-      nextLevelCarrierChunk = null //merged
-    } // or nextLevelCarrierChunk remains carrierChunk
-  } else {
-    // try to pop carrier chunk if it exists on the level
-    nextLevelCarrierChunk = popCarrierChunk(nextLevelChunks)
-  }
-
-  return {
-    nextLevelChunks,
-    nextLevelCarrierChunk,
-  }
-}
-
-function createParentChunk<
-  MaxChunkLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
-  SpanSize extends number = typeof DEFAULT_SPAN_SIZE,
->(childrenChunks: Chunk<MaxChunkLength, SpanSize>[], spanSize: SpanSize, maxPayloadSize: MaxChunkLength) {
-  const chunkAddresses = childrenChunks.map(chunk => chunk.address())
-  const chunkSpanSumValues = childrenChunks
-    .map(chunk => getSpanValue(chunk.span()))
-    .reduce((prev, curr) => prev + curr)
-  const nextLevelChunkBytes = serializeBytes(...chunkAddresses)
-
-  return makeChunk(nextLevelChunkBytes, {
-    spanSize,
-    startingSpanValue: chunkSpanSumValues,
-    maxPayloadSize,
-  })
-}
-
 /**
- * Removes carrier chunk of a the given chunk array and gives back
+ * Gives back required sister segments of a given payload segment index for inclusion proof
  *
- * @returns carrier chunk or undefined
- */
-function popCarrierChunk<
-  MaxChunkLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
-  SpanSize extends number = typeof DEFAULT_SPAN_SIZE,
->(chunks: Chunk<MaxChunkLength, SpanSize>[]): Chunk<MaxChunkLength, SpanSize> | null {
-  // chunks array has to be larger than 1 (a carrier count)
-  if (chunks.length <= 1) return null
-  const maxDataLength = chunks[0].maxDataLength
-  // max segment count in one chunk. the segment size have to be equal to the chunk addresses
-  const maxSegmentCount = maxDataLength / SEGMENT_SIZE
-
-  return chunks.length % maxSegmentCount === 1 ? chunks.pop() || null : null
-}
-
-/**
- * Gives back required segments for inclusion proof of a given payload byte index
+ * @param chunkedFile initialised ChunkedFile object of the data
+ * @param segmentIndex the segment index of the payload
+ * @returns sister segments by chunks and the corresponding span of the chunk for calculating chunk address
  */
 export function fileInclusionProofBottomUp<
-  MaxChunkLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
-  SpanSize extends number = typeof DEFAULT_SPAN_SIZE,
->(chunkedFile: ChunkedFile<MaxChunkLength, SpanSize>, segmentIndex: number): ChunkInclusionProof<SpanSize>[] {
+  MaxChunkPayloadLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
+  SpanLength extends number = typeof DEFAULT_SPAN_SIZE,
+>(
+  chunkedFile: ChunkedFile<MaxChunkPayloadLength, SpanLength>,
+  segmentIndex: number,
+): ChunkInclusionProof<SpanLength>[] {
   if (segmentIndex * SEGMENT_SIZE >= getSpanValue(chunkedFile.span())) {
     throw new Error(
       `The given segment index ${segmentIndex * SEGMENT_SIZE} is greater than ${getSpanValue(
@@ -223,11 +114,11 @@ export function fileInclusionProofBottomUp<
   }
 
   let levelChunks = chunkedFile.leafChunks()
-  const maxChunkPayload = levelChunks[0].maxDataLength
+  const maxChunkPayload = levelChunks[0].maxPayloadLength
   const maxSegmentCount = maxChunkPayload / SEGMENT_SIZE // default 128
   const chunkBmtLevels = Math.log2(maxSegmentCount)
   let carrierChunk = popCarrierChunk(levelChunks)
-  const chunkInclusionProofs: ChunkInclusionProof<SpanSize>[] = []
+  const chunkInclusionProofs: ChunkInclusionProof<SpanLength>[] = []
   while (levelChunks.length !== 1 || carrierChunk) {
     const chunkSegmentIndex = segmentIndex % maxSegmentCount
     let chunkIndexForProof = Math.floor(segmentIndex / maxSegmentCount)
@@ -242,8 +133,8 @@ export function fileInclusionProofBottomUp<
           nextLevelChunks,
           nextLevelCarrierChunk,
         }: {
-          nextLevelChunks: Chunk<MaxChunkLength, SpanSize>[]
-          nextLevelCarrierChunk: Chunk<MaxChunkLength, SpanSize> | null
+          nextLevelChunks: Chunk<MaxChunkPayloadLength, SpanLength>[]
+          nextLevelCarrierChunk: Chunk<MaxChunkPayloadLength, SpanLength> | null
         } = nextBmtLevel(levelChunks, carrierChunk)
         levelChunks = nextLevelChunks
         carrierChunk = nextLevelCarrierChunk
@@ -268,15 +159,24 @@ export function fileInclusionProofBottomUp<
   return chunkInclusionProofs
 }
 
-export function fileHashFromInclusionProof<SpanSize extends number = typeof DEFAULT_SPAN_SIZE>(
-  proveChunks: ChunkInclusionProof<SpanSize>[],
+/**
+ * Gives back the file address that is calculated with only the inclusion proof segments
+ * and the corresponding proved segment.
+ *
+ * @param proveChunks sister segments that will be hashed together with the calculated hashes
+ * @param proveSegment the segment that is wanted to be validated it is subsumed under the file address
+ * @param proveSegmentIndex the `proveSegment`'s segment index on its BMT level
+ * @returns the calculated file address
+ */
+export function fileAddressFromInclusionProof<SpanLength extends number = typeof DEFAULT_SPAN_SIZE>(
+  proveChunks: ChunkInclusionProof<SpanLength>[],
   proveSegment: Uint8Array,
   proveSegmentIndex: number,
 ): Uint8Array {
   const fileSize = getSpanValue(proveChunks[proveChunks.length - 1].span)
   let calculatedHash = proveSegment
   for (const proveChunk of proveChunks) {
-    const { chunkIndex: parentChunkIndex } = getSegmentIndexAndLevelInTree(proveSegmentIndex, fileSize)
+    const { chunkIndex: parentChunkIndex } = getBmtIndexOfSegment(proveSegmentIndex, fileSize)
     for (const proofSegment of proveChunk.sisterSegments) {
       const mergeSegmentFromRight = proveSegmentIndex % 2 === 0 ? true : false
       calculatedHash = mergeSegmentFromRight
@@ -293,8 +193,20 @@ export function fileHashFromInclusionProof<SpanSize extends number = typeof DEFA
   return calculatedHash
 }
 
-/** Get chunk ID in the BMT tree */
-export function getSegmentIndexAndLevelInTree(
+/**
+ * Get the chunk's position of a given payload segment index in the BMT tree
+ *
+ * The BMT buils up in an optimalized way, where an orphan/carrier chunk
+ * can be inserted into a higher level of the tree. It may cause that
+ * the segment index of a payload cannot be found in the lowest level where the splitter
+ * originally created its corresponding chunk.
+ *
+ * @param segmentIndex the segment index of the payload
+ * @param spanValue the byte length of the payload on which the BMT tree is built
+ * @param maxChunkPayloadByteLength what is the maximum byte length of a chunk. Default is 4096
+ * @returns level and position of the chunk that contains segment index of the payload
+ */
+export function getBmtIndexOfSegment(
   segmentIndex: number,
   spanValue: number,
   maxChunkPayloadByteLength = 4096,
@@ -317,4 +229,131 @@ export function getSegmentIndexAndLevelInTree(
   }
 
   return { chunkIndex: segmentIndex, level }
+}
+
+function bmt<
+  MaxChunkPayloadLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
+  SpanLength extends number = typeof DEFAULT_SPAN_SIZE,
+>(leafChunks: Chunk<MaxChunkPayloadLength, SpanLength>[]): Chunk<MaxChunkPayloadLength, SpanLength>[][] {
+  if (leafChunks.length === 0) {
+    throw new Error(`given chunk array is empty`)
+  }
+
+  // data level assign
+  const levelChunks: Chunk<MaxChunkPayloadLength, SpanLength>[][] = [leafChunks]
+  let carrierChunk = popCarrierChunk(leafChunks)
+  while (levelChunks[levelChunks.length - 1].length !== 1) {
+    const { nextLevelChunks, nextLevelCarrierChunk } = nextBmtLevel(
+      levelChunks[levelChunks.length - 1],
+      carrierChunk,
+    )
+    carrierChunk = nextLevelCarrierChunk
+    levelChunks.push(nextLevelChunks)
+  }
+
+  return levelChunks
+}
+
+function bmtRootChunk<
+  MaxChunkPayloadLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
+  SpanLength extends number = typeof DEFAULT_SPAN_SIZE,
+>(chunks: Chunk<MaxChunkPayloadLength, SpanLength>[]): Chunk<MaxChunkPayloadLength, SpanLength> {
+  if (chunks.length === 0) {
+    throw new Error(`given chunk array is empty`)
+  }
+
+  // zero level assign
+  let levelChunks = chunks
+  let carrierChunk = popCarrierChunk(levelChunks)
+
+  while (levelChunks.length !== 1 || carrierChunk) {
+    const { nextLevelChunks, nextLevelCarrierChunk } = nextBmtLevel(levelChunks, carrierChunk)
+    levelChunks = nextLevelChunks
+    carrierChunk = nextLevelCarrierChunk
+  }
+
+  return levelChunks[0]
+}
+
+function nextBmtLevel<
+  MaxChunkPayloadLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
+  SpanLength extends number = typeof DEFAULT_SPAN_SIZE,
+>(
+  chunks: Chunk<MaxChunkPayloadLength, SpanLength>[],
+  carrierChunk: Chunk<MaxChunkPayloadLength, SpanLength> | null,
+): {
+  nextLevelChunks: Chunk<MaxChunkPayloadLength, SpanLength>[]
+  nextLevelCarrierChunk: Chunk<MaxChunkPayloadLength, SpanLength> | null
+} {
+  if (chunks.length === 0) {
+    throw new Error('The given chunk array is empty')
+  }
+  const maxPayloadLength = chunks[0].maxPayloadLength
+  const spanLength = chunks[0].spanLength
+  // max segment count in one chunk. the segment size have to be equal to the chunk addresses
+  const maxSegmentCount = maxPayloadLength / SEGMENT_SIZE //128 by default
+  const nextLevelChunks: Chunk<MaxChunkPayloadLength, SpanLength>[] = []
+
+  for (let offset = 0; offset < chunks.length; offset += maxSegmentCount) {
+    const childrenChunks = chunks.slice(offset, offset + maxSegmentCount)
+    nextLevelChunks.push(createIntermediateChunk(childrenChunks, spanLength, maxPayloadLength))
+  }
+
+  //edge case handling when there is carrierChunk
+  let nextLevelCarrierChunk = carrierChunk
+
+  if (carrierChunk) {
+    // try to merge carrier chunk if it first to its parents payload
+    if (nextLevelChunks.length % maxSegmentCount !== 0) {
+      nextLevelChunks.push(carrierChunk)
+      nextLevelCarrierChunk = null //merged
+    } // or nextLevelCarrierChunk remains carrierChunk
+  } else {
+    // try to pop carrier chunk if it exists on the level
+    nextLevelCarrierChunk = popCarrierChunk(nextLevelChunks)
+  }
+
+  return {
+    nextLevelChunks,
+    nextLevelCarrierChunk,
+  }
+}
+
+function createIntermediateChunk<
+  MaxChunkPayloadLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
+  SpanLength extends number = typeof DEFAULT_SPAN_SIZE,
+>(
+  childrenChunks: Chunk<MaxChunkPayloadLength, SpanLength>[],
+  spanLength: SpanLength,
+  maxPayloadSize: MaxChunkPayloadLength,
+) {
+  const chunkAddresses = childrenChunks.map(chunk => chunk.address())
+  const chunkSpanSumValues = childrenChunks
+    .map(chunk => getSpanValue(chunk.span()))
+    .reduce((prev, curr) => prev + curr)
+  const nextLevelChunkBytes = serializeBytes(...chunkAddresses)
+
+  return makeChunk(nextLevelChunkBytes, {
+    spanLength,
+    startingSpanValue: chunkSpanSumValues,
+    maxPayloadSize,
+  })
+}
+
+/**
+ * Removes carrier chunk of a the given chunk array and gives it back
+ *
+ * @returns carrier chunk or undefined
+ */
+function popCarrierChunk<
+  MaxChunkPayloadLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
+  SpanLength extends number = typeof DEFAULT_SPAN_SIZE,
+>(chunks: Chunk<MaxChunkPayloadLength, SpanLength>[]): Chunk<MaxChunkPayloadLength, SpanLength> | null {
+  // chunks array has to be larger than 1 (a carrier count)
+  if (chunks.length <= 1) return null
+  const maxDataLength = chunks[0].maxPayloadLength
+  // max segment count in one chunk. the segment size have to be equal to the chunk addresses
+  const maxSegmentCount = maxDataLength / SEGMENT_SIZE
+
+  return chunks.length % maxSegmentCount === 1 ? chunks.pop() || null : null
 }
