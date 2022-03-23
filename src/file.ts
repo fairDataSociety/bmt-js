@@ -225,6 +225,7 @@ export function fileInclusionProofBottomUp<
   let levelChunks = chunkedFile.leafChunks()
   const maxChunkPayload = levelChunks[0].maxDataLength
   const maxSegmentCount = maxChunkPayload / SEGMENT_SIZE // default 128
+  const chunkBmtLevels = Math.log2(maxSegmentCount)
   let carrierChunk = popCarrierChunk(levelChunks)
   const chunkInclusionProofs: ChunkInclusionProof<SpanSize>[] = []
   while (levelChunks.length !== 1 || carrierChunk) {
@@ -235,7 +236,7 @@ export function fileInclusionProofBottomUp<
     if (chunkIndexForProof === levelChunks.length) {
       //carrier chunk has been placed to somewhere else in the bmtTree
       if (!carrierChunk) throw new Error('Impossible')
-      segmentIndex >>>= 7 //log2(128) -> skip this level check now
+      segmentIndex >>>= chunkBmtLevels //log2(128) -> skip this level check now
       do {
         const {
           nextLevelChunks,
@@ -246,7 +247,7 @@ export function fileInclusionProofBottomUp<
         } = nextBmtLevel(levelChunks, carrierChunk)
         levelChunks = nextLevelChunks
         carrierChunk = nextLevelCarrierChunk
-        segmentIndex >>>= 7 //log2(128)
+        segmentIndex >>>= chunkBmtLevels
       } while (segmentIndex % maxSegmentCount === 0)
       // the carrier chunk is already placed in the BMT tree
       chunkIndexForProof = levelChunks.length - 1
@@ -299,6 +300,7 @@ export function getSegmentIndexAndLevelInTree(
   maxChunkPayloadByteLength = 4096,
 ): { level: number; chunkIndex: number } {
   const maxSegmentCount = maxChunkPayloadByteLength / SEGMENT_SIZE
+  const chunkBmtLevels = Math.log2(maxSegmentCount) // 7 by default
   // the saturated byte length in the BMT tree (on the left)
   const fullBytesLength = spanValue - (spanValue % maxChunkPayloadByteLength)
   // the saturated segments length in the BMT tree (on the left)
@@ -306,12 +308,12 @@ export function getSegmentIndexAndLevelInTree(
   let level = 0
   if (segmentIndex >= fullSegmentsLength && segmentIndex < fullSegmentsLength + maxSegmentCount) {
     do {
-      segmentIndex >>>= 7
+      segmentIndex >>>= chunkBmtLevels
       level++
     } while (segmentIndex % SEGMENT_SIZE === 0)
     level--
   } else {
-    segmentIndex >>>= 7
+    segmentIndex >>>= chunkBmtLevels
   }
 
   return { chunkIndex: segmentIndex, level }
