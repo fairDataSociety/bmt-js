@@ -5,6 +5,7 @@ import {
   DEFAULT_SPAN_SIZE,
   getSpanValue,
   makeChunk,
+  makeSpan,
   SEGMENT_SIZE,
   Span,
 } from '.'
@@ -41,45 +42,26 @@ export function makeChunkedFile<
 >(
   payload: Uint8Array,
   options?: {
-    maxPayloadSize?: MaxChunkPayloadLength
+    maxPayloadLength?: MaxChunkPayloadLength
     spanLength?: SpanLength
   },
 ): ChunkedFile<MaxChunkPayloadLength, SpanLength> {
-  const maxPayloadSize = (options?.maxPayloadSize || DEFAULT_MAX_PAYLOAD_SIZE) as MaxChunkPayloadLength
-  let calculatedRootChunk: Chunk<MaxChunkPayloadLength, SpanLength>
+  const maxPayloadLength = (options?.maxPayloadLength || DEFAULT_MAX_PAYLOAD_SIZE) as MaxChunkPayloadLength
+  const spanLength = (options?.spanLength || DEFAULT_SPAN_SIZE) as SpanLength
 
   //splitter
   const leafChunks = () => {
     const chunks: Chunk<MaxChunkPayloadLength, SpanLength>[] = []
-    for (let offset = 0; offset < payload.length; offset += maxPayloadSize) {
-      chunks.push(makeChunk(payload.slice(offset, offset + maxPayloadSize), options))
+    for (let offset = 0; offset < payload.length; offset += maxPayloadLength) {
+      chunks.push(makeChunk(payload.slice(offset, offset + maxPayloadLength), options))
     }
 
     return chunks
   }
-  // const span = () => makeSpan(payload.length, spanLength) as Span<SpanLength>
-  const span = () => {
-    if (!calculatedRootChunk) calculatedRootChunk = bmtRootChunk(leafChunks())
-
-    return calculatedRootChunk.span()
-  }
-  const address = () => {
-    if (!calculatedRootChunk) calculatedRootChunk = bmtRootChunk(leafChunks())
-
-    return calculatedRootChunk.address()
-  }
-  const rootChunk = () => {
-    if (!calculatedRootChunk) calculatedRootChunk = bmtRootChunk(leafChunks())
-
-    return calculatedRootChunk
-  }
-
-  const bmtTreeFn = () => {
-    const tree = bmt(leafChunks())
-    calculatedRootChunk = tree[tree.length - 1][0]
-
-    return tree
-  }
+  const span = () => makeSpan(payload.length, spanLength) as Span<SpanLength>
+  const address = () => bmtRootChunk(leafChunks()).address()
+  const rootChunk = () => bmtRootChunk(leafChunks())
+  const bmtTreeFn = () => bmt(leafChunks())
 
   return {
     payload,
