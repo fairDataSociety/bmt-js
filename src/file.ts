@@ -1,14 +1,6 @@
-import {
-  Chunk,
-  ChunkAddress,
-  DEFAULT_MAX_PAYLOAD_SIZE,
-  DEFAULT_SPAN_SIZE,
-  getSpanValue,
-  makeChunk,
-  makeSpan,
-  SEGMENT_SIZE,
-  Span,
-} from '.'
+import { Chunk, ChunkAddress, getSpanValue, makeChunk, makeSpan, Span } from '.'
+import { DEFAULT_MAX_PAYLOAD_SIZE, SEGMENT_SIZE } from './chunk'
+import { DEFAULT_SPAN_SIZE } from './span'
 import { Bytes, Flavor, keccak256Hash, serializeBytes } from './utils'
 
 export interface ChunkInclusionProof<SpanLength extends number = typeof DEFAULT_SPAN_SIZE> {
