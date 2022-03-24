@@ -9,6 +9,8 @@ on:
       - '**'
 
 env:
+  BEE_VERSION: '1.4.1'
+  BLOCKCHAIN_VERSION: '1.2.0'
   BEE_API_URL: 'http://localhost:1633'
   BEE_PEER_API_URL: 'http://localhost:11633'
 
