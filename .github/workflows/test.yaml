@@ -15,8 +15,8 @@ env:
   BEE_ENV_PREFIX: 'swarm-test'
   BEE_IMAGE_PREFIX: 'docker.pkg.github.com/ethersphere/bee-factory'
   COMMIT_VERSION_TAG: 'false'
-  BEE_API_URL: 'http://localhost:1633'
-  BEE_DEBUG_API_URL: 'http://localhost:1635'
+  BEE_API_URL: 'http://127.0.0.1:1633'
+  BEE_DEBUG_API_URL: 'http://127.0.0.1:1635'
 
 jobs:
   node-tests:
