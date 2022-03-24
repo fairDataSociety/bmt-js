@@ -12,6 +12,9 @@ env:
   WORKERS: 4
   BEE_VERSION: '1.4.1'
   BLOCKCHAIN_VERSION: '1.2.0'
+  BEE_ENV_PREFIX: 'swarm-test'
+  BEE_IMAGE_PREFIX: 'docker.pkg.github.com/ethersphere/bee-factory'
+  COMMIT_VERSION_TAG: 'false'
   BEE_API_URL: 'http://localhost:1633'
   BEE_PEER_API_URL: 'http://localhost:11633'
 
