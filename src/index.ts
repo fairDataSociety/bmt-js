@@ -1,4 +1,10 @@
-export * from './file'
-export * from './chunk'
-export * from './span'
+export {
+  ChunkedFile,
+  ChunkInclusionProof,
+  makeChunkedFile,
+  fileAddressFromInclusionProof,
+  getBmtIndexOfSegment,
+} from './file'
+export { Chunk, ChunkAddress, makeChunk, rootHashFromInclusionProof } from './chunk'
+export { Span, makeSpan, getSpanValue } from './span'
 export * as Utils from './utils'

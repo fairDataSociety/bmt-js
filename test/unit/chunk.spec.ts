@@ -1,4 +1,5 @@
-import { Utils, makeChunk, makeSpan, SEGMENT_SIZE, rootHashFromInclusionProof } from '../../src'
+import { Utils, makeChunk, makeSpan, rootHashFromInclusionProof } from '../../src'
+import { SEGMENT_SIZE } from '../../src/chunk'
 import { keccak256Hash } from '../../src/utils'
 
 describe('chunk', () => {

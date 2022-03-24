@@ -1,4 +1,6 @@
-import { fileInclusionProofBottomUp, getSpanValue, makeChunkedFile, SEGMENT_SIZE } from '../../src'
+import { getSpanValue, makeChunkedFile } from '../../src'
+import { fileInclusionProofBottomUp } from '../../src/file'
+import { SEGMENT_SIZE } from '../../src/chunk'
 import FS from 'fs'
 import path from 'path'
 import { bytesToHex } from '../../src/utils'

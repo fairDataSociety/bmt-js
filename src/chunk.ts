@@ -66,35 +66,6 @@ export function makeChunk<
   }
 }
 
-/**
- * Calculate the chunk address from the Binary Merkle Tree of the chunk data
- *
- * The BMT chunk address is the hash of the 8 byte span and the root
- * hash of a binary Merkle tree (BMT) built on the 32-byte segments
- * of the underlying data.
- *
- * If the chunk content is less than 4k, the hash is calculated as
- * if the chunk was padded with all zeros up to 4096 bytes.
- *
- * @param payload Chunk data Uint8Array
- * @param spanLength dedicated byte length for serializing span value of chunk
- * @param chunkSpan constucted Span uint8array object of the chunk
- *
- * @returns the keccak256 hash in a byte array
- */
-function chunkAddress<SpanLength extends number = typeof DEFAULT_SPAN_SIZE>(
-  payload: Uint8Array,
-  spanLength?: SpanLength,
-  chunkSpan?: Span<SpanLength>,
-): Bytes<32> {
-  const span = chunkSpan || makeSpan(payload.length, spanLength)
-  const rootHash = bmtRootHash(payload)
-  const chunkHashInput = new Uint8Array([...span, ...rootHash])
-  const chunkHash = keccak256Hash(chunkHashInput)
-
-  return chunkHash
-}
-
 export function bmtRootHash(
   payload: Uint8Array,
   maxPayloadLength: number = DEFAULT_MAX_PAYLOAD_SIZE, // default 4096
@@ -118,39 +89,6 @@ export function bmtRootHash(
   }
 
   return input
-}
-
-/**
- * Gives back all level of the bmt of the payload
- *
- * @param payload any data in Uint8Array object
- * @returns array of the whole bmt hash level of the given data.
- * First level is the data itself until the last level that is the root hash itself.
- */
-function bmt(payload: Uint8Array, maxPayloadLength: number = DEFAULT_MAX_PAYLOAD_SIZE): Uint8Array[] {
-  if (payload.length > maxPayloadLength) {
-    throw new Error(`invalid data length ${payload.length}`)
-  }
-
-  // create an input buffer padded with zeros
-  let input = new Uint8Array([...payload, ...new Uint8Array(maxPayloadLength - payload.length)])
-  const tree: Uint8Array[] = []
-  while (input.length !== HASH_SIZE) {
-    tree.push(input)
-    const output = new Uint8Array(input.length / 2)
-
-    // in each round we hash the segment pairs together
-    for (let offset = 0; offset < input.length; offset += SEGMENT_PAIR_SIZE) {
-      const hashNumbers = keccak256.array(input.slice(offset, offset + SEGMENT_PAIR_SIZE))
-      output.set(hashNumbers, offset / 2)
-    }
-
-    input = output
-  }
-  //add the last "input" that is the bmt root hash of the application
-  tree.push(input)
-
-  return tree
 }
 
 /**
@@ -201,4 +139,66 @@ export function rootHashFromInclusionProof(
   }
 
   return calculatedHash
+}
+
+/**
+ * Gives back all level of the bmt of the payload
+ *
+ * @param payload any data in Uint8Array object
+ * @returns array of the whole bmt hash level of the given data.
+ * First level is the data itself until the last level that is the root hash itself.
+ */
+function bmt(payload: Uint8Array, maxPayloadLength: number = DEFAULT_MAX_PAYLOAD_SIZE): Uint8Array[] {
+  if (payload.length > maxPayloadLength) {
+    throw new Error(`invalid data length ${payload.length}`)
+  }
+
+  // create an input buffer padded with zeros
+  let input = new Uint8Array([...payload, ...new Uint8Array(maxPayloadLength - payload.length)])
+  const tree: Uint8Array[] = []
+  while (input.length !== HASH_SIZE) {
+    tree.push(input)
+    const output = new Uint8Array(input.length / 2)
+
+    // in each round we hash the segment pairs together
+    for (let offset = 0; offset < input.length; offset += SEGMENT_PAIR_SIZE) {
+      const hashNumbers = keccak256.array(input.slice(offset, offset + SEGMENT_PAIR_SIZE))
+      output.set(hashNumbers, offset / 2)
+    }
+
+    input = output
+  }
+  //add the last "input" that is the bmt root hash of the application
+  tree.push(input)
+
+  return tree
+}
+
+/**
+ * Calculate the chunk address from the Binary Merkle Tree of the chunk data
+ *
+ * The BMT chunk address is the hash of the 8 byte span and the root
+ * hash of a binary Merkle tree (BMT) built on the 32-byte segments
+ * of the underlying data.
+ *
+ * If the chunk content is less than 4k, the hash is calculated as
+ * if the chunk was padded with all zeros up to 4096 bytes.
+ *
+ * @param payload Chunk data Uint8Array
+ * @param spanLength dedicated byte length for serializing span value of chunk
+ * @param chunkSpan constucted Span uint8array object of the chunk
+ *
+ * @returns the keccak256 hash in a byte array
+ */
+function chunkAddress<SpanLength extends number = typeof DEFAULT_SPAN_SIZE>(
+  payload: Uint8Array,
+  spanLength?: SpanLength,
+  chunkSpan?: Span<SpanLength>,
+): Bytes<32> {
+  const span = chunkSpan || makeSpan(payload.length, spanLength)
+  const rootHash = bmtRootHash(payload)
+  const chunkHashInput = new Uint8Array([...span, ...rootHash])
+  const chunkHash = keccak256Hash(chunkHashInput)
+
+  return chunkHash
 }

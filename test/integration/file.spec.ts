@@ -1,7 +1,8 @@
 import { Bee, SPAN_SIZE } from '@ethersphere/bee-js'
 import FS from 'fs'
 import path from 'path'
-import { DEFAULT_MAX_PAYLOAD_SIZE, makeChunkedFile } from '../../src'
+import { makeChunkedFile } from '../../src'
+import { DEFAULT_MAX_PAYLOAD_SIZE } from '../../src/chunk'
 import { bytesToHex } from '../../src/utils'
 
 const beeUrl = process.env.BEE_API_URL || 'http://localhost:1633'

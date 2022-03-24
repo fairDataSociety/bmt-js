@@ -1,4 +1,5 @@
-import { getSpanValue, makeSpan, MAX_SPAN_LENGTH } from '../../src'
+import { getSpanValue, makeSpan } from '../../src'
+import { MAX_SPAN_LENGTH } from '../../src/span'
 
 describe('span', () => {
   it('should serialize/deserialize', () => {
