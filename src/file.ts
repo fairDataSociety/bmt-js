@@ -188,7 +188,7 @@ export function getBmtIndexOfSegment(
   const maxSegmentCount = maxChunkPayloadByteLength / SEGMENT_SIZE
   const chunkBmtLevels = Math.log2(maxSegmentCount) // 7 by default
   // last segment index in the file
-  const lastSegmentIndex = Math.floor(spanValue % SEGMENT_SIZE)
+  const lastSegmentIndex = Math.floor((spanValue - 1) % SEGMENT_SIZE)
   // the saturated byte length in the BMT tree (on the left)
   const fullBytesLength = spanValue - (spanValue % maxChunkPayloadByteLength)
   // the saturated segments length in the BMT tree (on the left)
