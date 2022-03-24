@@ -26,7 +26,7 @@ export interface ChunkedFile<
   payload: Uint8Array
   address(): ChunkAddress
   span(): Span<SpanLength>
-  bmtTree(): Chunk<MaxChunkPayloadLength, SpanLength>[][]
+  bmt(): Chunk<MaxChunkPayloadLength, SpanLength>[][]
 }
 
 /**
@@ -61,7 +61,7 @@ export function makeChunkedFile<
   const span = () => makeSpan(payload.length, spanLength) as Span<SpanLength>
   const address = () => bmtRootChunk(leafChunks()).address()
   const rootChunk = () => bmtRootChunk(leafChunks())
-  const bmtTreeFn = () => bmt(leafChunks())
+  const bmtFn = () => bmt(leafChunks())
 
   return {
     payload,
@@ -69,7 +69,7 @@ export function makeChunkedFile<
     leafChunks,
     address,
     rootChunk,
-    bmtTree: bmtTreeFn,
+    bmt: bmtFn,
   }
 }
 

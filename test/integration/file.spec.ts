@@ -35,7 +35,7 @@ describe('file', () => {
     const beeLeafLayer1stChunk = await bee.downloadChunk(bytesToHex(bee2ndLayer1stChunk.slice(8, 40), 64))
     expect(beeLeafLayer1stChunk.length).toBe(spanAndChunkPayloadLength)
 
-    const tree = chunkedFile.bmtTree()
+    const tree = chunkedFile.bmt()
     expect(tree[0][0].payload).toStrictEqual(beeLeafLayer1stChunk.slice(8))
 
     expect(tree[1][0].payload).toStrictEqual(bee2ndLayer1stChunk.slice(8))

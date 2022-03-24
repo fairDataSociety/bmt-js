@@ -1,12 +1,4 @@
-import {
-  bmtHash,
-  Utils,
-  makeChunk,
-  bmtTree,
-  makeSpan,
-  SEGMENT_SIZE,
-  rootHashFromInclusionProof,
-} from '../../src'
+import { Utils, makeChunk, makeSpan, SEGMENT_SIZE, rootHashFromInclusionProof } from '../../src'
 import { keccak256Hash } from '../../src/utils'
 
 describe('chunk', () => {
@@ -24,15 +16,16 @@ describe('chunk', () => {
 
   it('should produce correct BMT hash', () => {
     const hash = 'ca6357a08e317d15ec560fef34e4c45f8f19f01c372aa70f1da72bfa7f1a4338'
+    const chunk = makeChunk(payload)
 
-    const result = bmtHash(payload)
+    const result = chunk.address()
 
     expect(Utils.bytesToHex(result, 64)).toEqual(hash)
   })
 
   it('should test out bmtTree is in line with Chunk object calculations', () => {
     const chunk = makeChunk(payload)
-    const tree = bmtTree(chunk.data())
+    const tree = chunk.bmt()
     expect(tree.length).toBe(8)
     const rootHash = tree[tree.length - 1]
     expect(keccak256Hash(chunk.span(), rootHash)).toStrictEqual(chunk.address())
@@ -40,8 +33,8 @@ describe('chunk', () => {
 
   it('should retrieve the required segment pairs for inclusion proof', () => {
     const chunk = makeChunk(payload)
-    const tree = bmtTree(payload)
-    const bmtHashOfPayload = bmtHash(payload)
+    const tree = chunk.bmt()
+    const bmtHashOfPayload = chunk.address()
     expect(tree.length).toBe(8)
     /** Gives back the bmt root hash calculated from the inclusion proof method */
     const testGetRootHash = (segmentIndex: number): Uint8Array => {

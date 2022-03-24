@@ -29,7 +29,7 @@ describe('file', () => {
     expect(getSpanValue(chunkedFile.span())).toStrictEqual(15726634)
     expect(getSpanValue(new Uint8Array([42, 248, 239, 0, 0, 0, 0, 0]))).toStrictEqual(15726634)
 
-    const tree = chunkedFile.bmtTree()
+    const tree = chunkedFile.bmt()
     expect(tree.length).toBe(3)
     // last level only contains the rootChunk
     expect(tree[2].length).toBe(1)
@@ -56,7 +56,7 @@ describe('file', () => {
       FS.readFileSync(path.join(__dirname, '..', 'test-files', 'carrier-chunk-blob')),
     )
     const chunkedFile = makeChunkedFile(fileBytes)
-    const tree = chunkedFile.bmtTree()
+    const tree = chunkedFile.bmt()
     const leafChunks = chunkedFile.leafChunks()
     // check whether the last chunk is not present in the BMT tree 0 level -> carrierChunk
     expect(tree[0].length).toBe(leafChunks.length - 1)

@@ -15,12 +15,13 @@ export interface Chunk<
   SpanLength extends number = typeof DEFAULT_SPAN_SIZE,
 > extends Flavor<'Chunk'> {
   readonly payload: FlexBytes<1, MaxPayloadLength>
+  maxPayloadLength: MaxPayloadLength
+  spanLength: SpanLength
   data(): ValidChunkData
   span(): Bytes<SpanLength>
   address(): ChunkAddress
-  maxPayloadLength: MaxPayloadLength
-  spanLength: SpanLength
   inclusionProof(segmentIndex: number): Uint8Array[]
+  bmt(): Uint8Array[]
 }
 
 /**
@@ -47,23 +48,26 @@ export function makeChunk<
 
   assertFlexBytes(payloadBytes, 1, maxPayloadLength)
   const paddingChunkLength = new Uint8Array(maxPayloadLength - payloadBytes.length)
-  const spanFn = () => makeSpan(spanValue, spanLength)
-  const dataFn = () => serializeBytes(payloadBytes, new Uint8Array(paddingChunkLength)) as ValidChunkData
-  const inclusionProofFn = (segmentIndex: number) => inclusionProofBottomUp(dataFn(), segmentIndex)
+  const span = () => makeSpan(spanValue, spanLength)
+  const data = () => serializeBytes(payloadBytes, new Uint8Array(paddingChunkLength)) as ValidChunkData
+  const inclusionProof = (segmentIndex: number) => inclusionProofBottomUp(data(), segmentIndex)
+  const address = () => chunkAddress(payloadBytes, spanLength, span())
+  const bmtFn = () => bmt(data(), maxPayloadLength)
 
   return {
     payload: payloadBytes,
-    data: dataFn,
-    span: spanFn,
-    address: () => bmtHash(payloadBytes, spanLength, spanFn()),
-    maxPayloadLength,
     spanLength,
-    inclusionProof: inclusionProofFn,
+    maxPayloadLength,
+    data,
+    span,
+    address,
+    inclusionProof,
+    bmt: bmtFn,
   }
 }
 
 /**
- * Calculate a Binary Merkle Tree hash for a chunk
+ * Calculate the chunk address from the Binary Merkle Tree of the chunk data
  *
  * The BMT chunk address is the hash of the 8 byte span and the root
  * hash of a binary Merkle tree (BMT) built on the 32-byte segments
@@ -73,10 +77,12 @@ export function makeChunk<
  * if the chunk was padded with all zeros up to 4096 bytes.
  *
  * @param payload Chunk data Uint8Array
+ * @param spanLength dedicated byte length for serializing span value of chunk
+ * @param chunkSpan constucted Span uint8array object of the chunk
  *
  * @returns the keccak256 hash in a byte array
  */
-export function bmtHash<SpanLength extends number = typeof DEFAULT_SPAN_SIZE>(
+function chunkAddress<SpanLength extends number = typeof DEFAULT_SPAN_SIZE>(
   payload: Uint8Array,
   spanLength?: SpanLength,
   chunkSpan?: Span<SpanLength>,
@@ -89,13 +95,16 @@ export function bmtHash<SpanLength extends number = typeof DEFAULT_SPAN_SIZE>(
   return chunkHash
 }
 
-export function bmtRootHash(payload: Uint8Array): Uint8Array {
-  if (payload.length > DEFAULT_MAX_PAYLOAD_SIZE) {
+export function bmtRootHash(
+  payload: Uint8Array,
+  maxPayloadLength: number = DEFAULT_MAX_PAYLOAD_SIZE, // default 4096
+): Uint8Array {
+  if (payload.length > maxPayloadLength) {
     throw new Error(`invalid data length ${payload}`)
   }
 
   // create an input buffer padded with zeros
-  let input = new Uint8Array([...payload, ...new Uint8Array(DEFAULT_MAX_PAYLOAD_SIZE - payload.length)])
+  let input = new Uint8Array([...payload, ...new Uint8Array(maxPayloadLength - payload.length)])
   while (input.length !== HASH_SIZE) {
     const output = new Uint8Array(input.length / 2)
 
@@ -118,13 +127,13 @@ export function bmtRootHash(payload: Uint8Array): Uint8Array {
  * @returns array of the whole bmt hash level of the given data.
  * First level is the data itself until the last level that is the root hash itself.
  */
-export function bmtTree(payload: Uint8Array): Uint8Array[] {
-  if (payload.length > DEFAULT_MAX_PAYLOAD_SIZE) {
+function bmt(payload: Uint8Array, maxPayloadLength: number = DEFAULT_MAX_PAYLOAD_SIZE): Uint8Array[] {
+  if (payload.length > maxPayloadLength) {
     throw new Error(`invalid data length ${payload.length}`)
   }
 
   // create an input buffer padded with zeros
-  let input = new Uint8Array([...payload, ...new Uint8Array(DEFAULT_MAX_PAYLOAD_SIZE - payload.length)])
+  let input = new Uint8Array([...payload, ...new Uint8Array(maxPayloadLength - payload.length)])
   const tree: Uint8Array[] = []
   while (input.length !== HASH_SIZE) {
     tree.push(input)
@@ -159,7 +168,7 @@ export function inclusionProofBottomUp(payloadBytes: Uint8Array, segmentIndex: n
     )
   }
 
-  const tree = bmtTree(payloadBytes)
+  const tree = bmt(payloadBytes)
   const sisterSegments: Array<Uint8Array> = []
   const rootHashLevel = tree.length - 1
   for (let level = 0; level < rootHashLevel; level++) {
