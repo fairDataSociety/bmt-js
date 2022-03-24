@@ -37,7 +37,7 @@ That's why the the algorithm handles orphan chunk as `Carrier chunk` and tries t
 
 This BMT hashing of data allows to reference any file with unified 32 bytes unique address which is called _content addressing_.
 
-[[https://github.com/fairDataSociety/bmt-js/blob/master/docs/file-bmt.png|alt=file-bmt]]
+[[https://github.com/fairDataSociety/bmt-js/blob/master/docs/file-bmt.png|alt=file-bmt-calc]]
 
 Nevertheless, it also allows to perform lightweight _compact inclusion proof_ on data.
 This proof requires little amount of data to be provided for proving whether any particular segment (32 bytes) of the data is present at a particular offset under the file address.
