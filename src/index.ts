@@ -2,6 +2,7 @@ export {
   ChunkedFile,
   ChunkInclusionProof,
   makeChunkedFile,
+  fileInclusionProofBottomUp,
   fileAddressFromInclusionProof,
   getBmtIndexOfSegment,
 } from './file'

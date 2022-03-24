@@ -124,6 +124,7 @@ export function inclusionProofBottomUp(payloadBytes: Uint8Array, segmentIndex: n
   return sisterSegments
 }
 
+/** Calculates the BMT root hash from the provided inclusion proof segments and its corresponding segment index */
 export function rootHashFromInclusionProof(
   proofSegments: Uint8Array[],
   proveSegment: Uint8Array,

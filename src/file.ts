@@ -135,7 +135,7 @@ export function fileInclusionProofBottomUp<
 
 /**
  * Gives back the file address that is calculated with only the inclusion proof segments
- * and the corresponding proved segment.
+ * and the corresponding proved segment and its position.
  *
  * @param proveChunks sister segments that will be hashed together with the calculated hashes
  * @param proveSegment the segment that is wanted to be validated it is subsumed under the file address
