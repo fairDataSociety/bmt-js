@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import { BeeDebug, DebugPostageBatch } from '@ethersphere/bee-js'
+import { BeeDebug, PostageBatch } from '@ethersphere/bee-js'
 
 async function sleep(ms = 1000): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -14,7 +14,7 @@ export default async function testsSetup(): Promise<void> {
       process.env.BEE_POSTAGE = await beeDebug.createPostageBatch('1', 20)
       console.log('BEE_POSTAGE: ', process.env.BEE_POSTAGE)
       //wait for chunk to be usable
-      let postageBatch: DebugPostageBatch
+      let postageBatch: PostageBatch
       do {
         postageBatch = await beeDebug.getPostageBatch(process.env.BEE_POSTAGE)
 
