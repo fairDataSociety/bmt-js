@@ -26,6 +26,7 @@ export default async (): Promise<Config.InitialOptions> => {
 
     // An array of regexp pattern strings that are matched against all test paths, matched tests are skipped
     testPathIgnorePatterns: ['/node_modules/'],
+    testTimeout: 25000,
 
     // Run tests from one or more projects
     projects: [
@@ -38,7 +39,7 @@ export default async (): Promise<Config.InitialOptions> => {
         displayName: 'node:integration',
         testEnvironment: 'node',
         testRegex: 'test/integration/((?!\\.browser).)*\\.spec\\.ts',
-        globalSetup: '<rootDir>/test/test-setup.ts'
+        globalSetup: '<rootDir>/test/test-setup.ts',
       },
     ] as unknown[] as string[], // bad types
   }
