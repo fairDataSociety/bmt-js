@@ -4,6 +4,12 @@ This JavaScript library does [Binary Merkle Tree](https://en.wikipedia.org/wiki/
 
 The library calculates the content address of any data and also offers functions for performing cheap compact inclusion proof of any 32 bytes segments in it.
 
+# Install
+
+```sh
+npm install @fairdatasociety/bmt-js --save
+```
+
 # How it works
 
 First, it splits the data into `chunks` that have maximum 4KB payload by default, but this condition can modified as well as its `span` byte length (8 bytes) that indicates how long byte payload subsumed under the chunk.
@@ -39,7 +45,7 @@ To get these inclusion segments, the library collects all required segments from
 
 # API
 
-You can import the followings directly from `@FairDataSociety/bmt-js`:
+You can import the followings directly from `@fairdatasociety/bmt-js`:
 
 ## Types
 
