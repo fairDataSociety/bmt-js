@@ -1,0 +1,64 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - 'master'
+  pull_request:
+    branches:
+      - '**'
+
+env:
+  WORKERS: 4
+  BEE_VERSION: '1.4.1'
+  BLOCKCHAIN_VERSION: '1.2.0'
+  BEE_ENV_PREFIX: 'swarm-test'
+  BEE_IMAGE_PREFIX: 'docker.pkg.github.com/ethersphere/bee-factory'
+  COMMIT_VERSION_TAG: 'false'
+  BEE_API_URL: 'http://127.0.0.1:1633'
+  BEE_DEBUG_API_URL: 'http://127.0.0.1:1635'
+
+jobs:
+  node-tests:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [14.x, 15.x, 16.x, 17.x]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Auth to Github Package Docker Registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login https://docker.pkg.github.com -u ${GITHUB_ACTOR} --password-stdin
+
+      # Setup Bee environment
+      - name: Start Bee Factory environment
+        run: |
+          git clone --depth=1 https://github.com/fairDataSociety/bee-factory.git
+          chmod +x -R ./bee-factory/scripts
+          ./bee-factory/scripts/environment.sh start --detach --workers=$WORKERS
+
+      ## Try getting the node modules from cache, if failed npm ci
+      - uses: actions/cache@v2
+        id: cache-npm
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.OS }}-node-${{ matrix.node }}-${{ env.cache-name }}-
+            ${{ runner.OS }}-node-${{ matrix.node }}-
+      - name: Install npm deps
+        if: steps.cache-npm.outputs.cache-hit != 'true'
+        run: npm ci
+      - name: Run tests
+        run: npm run test
