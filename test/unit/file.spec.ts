@@ -65,6 +65,8 @@ describe('file', () => {
     const carrierChunk = leafChunks.pop()
     const segmentIndex = Math.floor((fileBytes.length - 1) / 32)
     const segmentIdInTree = getBmtIndexOfSegment(segmentIndex, fileBytes.length)
+    expect(segmentIdInTree.level).toBe(1)
+    expect(segmentIdInTree.chunkIndex).toBe(1)
     expect(tree[segmentIdInTree.level][segmentIdInTree.chunkIndex].address()).toStrictEqual(
       carrierChunk.address(),
     )
