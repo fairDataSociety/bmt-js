@@ -7,6 +7,16 @@ import { bytesToHex } from '../../src/utils'
 import { fileAddressFromInclusionProof, getBmtIndexOfSegment } from '../../src/file'
 
 describe('file', () => {
+  let bosBytes: Uint8Array
+  let carrierChunkFileBytes: Uint8Array
+  beforeAll(() => {
+    bosBytes = Uint8Array.from(
+      FS.readFileSync(path.join(__dirname, '..', 'test-files', 'The-Book-of-Swarm.pdf')),
+    )
+    carrierChunkFileBytes = Uint8Array.from(
+      FS.readFileSync(path.join(__dirname, '..', 'test-files', 'carrier-chunk-blob')),
+    )
+  })
   it('should work with lesser than 4KB of data', () => {
     const payload = new Uint8Array([1, 2, 3])
 
@@ -22,9 +32,7 @@ describe('file', () => {
   })
 
   it('should work with greater than 4KB of data', () => {
-    const fileBytes = Uint8Array.from(
-      FS.readFileSync(path.join(__dirname, '..', 'test-files', 'The-Book-of-Swarm.pdf')),
-    )
+    const fileBytes = bosBytes
 
     const chunkedFile = makeChunkedFile(fileBytes)
 
@@ -54,9 +62,7 @@ describe('file', () => {
 
   it('should find BMT position of the payload segment index', () => {
     //edge case - carrier chunk
-    const fileBytes = Uint8Array.from(
-      FS.readFileSync(path.join(__dirname, '..', 'test-files', 'carrier-chunk-blob')),
-    )
+    const fileBytes = carrierChunkFileBytes
     const chunkedFile = makeChunkedFile(fileBytes)
     const tree = chunkedFile.bmt()
     const leafChunks = chunkedFile.leafChunks()
@@ -73,9 +79,7 @@ describe('file', () => {
   })
 
   it('should collect the required segments for inclusion proof', () => {
-    const fileBytes = Uint8Array.from(
-      FS.readFileSync(path.join(__dirname, '..', 'test-files', 'carrier-chunk-blob')),
-    )
+    const fileBytes = carrierChunkFileBytes
     const chunkedFile = makeChunkedFile(fileBytes)
     const fileHash = chunkedFile.address()
     // segment to prove
@@ -106,5 +110,36 @@ describe('file', () => {
     expect(hash1).toStrictEqual(fileHash)
     const hash2 = testGetFileHash(1000)
     expect(hash2).toStrictEqual(fileHash)
+  })
+
+  it('should collect the required segments for inclusion proof 2', () => {
+    const fileBytes = bosBytes
+    const chunkedFile = makeChunkedFile(fileBytes)
+    const fileHash = chunkedFile.address()
+    // segment to prove
+    const lastSegmentIndex = Math.floor((fileBytes.length - 1) / 32)
+
+    /** Gives back the file hash calculated from the inclusion proof method */
+    const testGetFileHash = (segmentIndex: number): Uint8Array => {
+      const proofChunks = fileInclusionProofBottomUp(chunkedFile, segmentIndex)
+      let proveSegment = fileBytes.slice(
+        segmentIndex * SEGMENT_SIZE,
+        segmentIndex * SEGMENT_SIZE + SEGMENT_SIZE,
+      )
+      //padding
+      proveSegment = new Uint8Array([...proveSegment, ...new Uint8Array(SEGMENT_SIZE - proveSegment.length)])
+
+      // check the last segment has the correct span value.
+      const fileSizeFromProof = getSpanValue(proofChunks[proofChunks.length - 1].span)
+      expect(fileSizeFromProof).toBe(fileBytes.length)
+
+      return fileAddressFromInclusionProof(proofChunks, proveSegment, segmentIndex)
+    }
+    // edge case
+    const hash1 = testGetFileHash(lastSegmentIndex)
+    expect(hash1).toStrictEqual(fileHash)
+    const hash2 = testGetFileHash(1000)
+    expect(hash2).toStrictEqual(fileHash)
+    expect(() => testGetFileHash(lastSegmentIndex + 1)).toThrowError(/^The given segment index/)
   })
 })
