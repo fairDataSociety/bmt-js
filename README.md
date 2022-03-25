@@ -24,7 +24,7 @@ The used hashing algorithm is the `keccak256` function that results in a 32 byte
 Performing BMT hashing on the chunk data will define the `BMT root hash` of the chunk.
 Then, for integrity considerations, the BMT root hash is hashed with the chunk's span from the left which takes the `Chunk address`.
 
-[[https://github.com/fairDataSociety/bmt-js/blob/master/docs/bmt-hashing.png|alt=BMT-hashing]]
+![BMT Hashing](./docs/bmt-hashing.png)
 
 In order to refer files also with a single 32 byte segment, the chunk addresses of the payload have to be hashed in the same way until the `File address`:
 
@@ -37,7 +37,7 @@ That's why the the algorithm handles orphan chunk as `Carrier chunk` and tries t
 
 This BMT hashing of data allows to reference any file with unified 32 bytes unique address which is called _content addressing_.
 
-[[https://github.com/fairDataSociety/bmt-js/blob/master/docs/file-bmt.png|alt=file-bmt-calc]]
+![File BMT calculation](./docs/file-bmt.png)
 
 Nevertheless, it also allows to perform lightweight _compact inclusion proof_ on data.
 This proof requires little amount of data to be provided for proving whether any particular segment (32 bytes) of the data is present at a particular offset under the file address.
@@ -47,7 +47,7 @@ The first/best use-case for this can happen via smart contracts that implement t
 
 To get these inclusion segments, the library collects all required segments from the BMT tree that can be used for input of smart contract validation parameters.
 
-[[https://github.com/fairDataSociety/bmt-js/blob/master/docs/inclusion-proof.png|alt=inclusion-proof]]
+![Inclusion proof](./docs/inclusion-proof.png)
 
 # API
 
