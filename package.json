@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "Binary Merkle Tree operations on data",
   "main": "dist/index.js",
-  "types": "dist/src/index.d.ts",
+  "types": "dist/index.d.ts",
   "scripts": {
     "prepare": "rimraf dist && npm run compile:types && npm run compile --env mode=production",
     "compile": "webpack --progress --env target=node",
