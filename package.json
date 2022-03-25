@@ -4,6 +4,10 @@
   "description": "Binary Merkle Tree operations on data",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fairDataSociety/bmt-js.git"
+  },
   "scripts": {
     "prepare": "rimraf dist && npm run compile:types && npm run compile --env mode=production",
     "compile": "webpack --progress --env target=node",
