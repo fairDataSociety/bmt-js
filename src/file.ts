@@ -81,8 +81,8 @@ export function fileInclusionProofBottomUp<
 ): ChunkInclusionProof<SpanLength>[] {
   if (segmentIndex * SEGMENT_SIZE >= getSpanValue(chunkedFile.span())) {
     throw new Error(
-      `The given segment index ${segmentIndex * SEGMENT_SIZE} is greater than ${getSpanValue(
-        chunkedFile.span(),
+      `The given segment index ${segmentIndex} is greater than ${Math.floor(
+        getSpanValue(chunkedFile.span()) / SEGMENT_SIZE,
       )}`,
     )
   }

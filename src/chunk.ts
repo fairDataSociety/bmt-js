@@ -102,7 +102,9 @@ export function bmtRootHash(
 export function inclusionProofBottomUp(payloadBytes: Uint8Array, segmentIndex: number): Uint8Array[] {
   if (segmentIndex * SEGMENT_SIZE >= payloadBytes.length) {
     throw new Error(
-      `The given segment index ${segmentIndex} is greater than ${payloadBytes.length / SEGMENT_SIZE}`,
+      `The given segment index ${segmentIndex} is greater than ${Math.floor(
+        payloadBytes.length / SEGMENT_SIZE,
+      )}`,
     )
   }
 
