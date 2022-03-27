@@ -69,8 +69,9 @@ describe('file', () => {
     // check whether the last chunk is not present in the BMT tree 0 level -> carrierChunk
     expect(tree[0].length).toBe(leafChunks.length - 1)
     const carrierChunk = leafChunks.pop()
-    const segmentIndex = Math.floor((fileBytes.length - 1) / 32)
-    const segmentIdInTree = getBmtIndexOfSegment(segmentIndex, fileBytes.length)
+    const segmentIndex = Math.floor((fileBytes.length - 1) / 32) // last segment index as well
+    const lastChunkIndex = Math.floor((fileBytes.length - 1) / 4096)
+    const segmentIdInTree = getBmtIndexOfSegment(segmentIndex, lastChunkIndex)
     expect(segmentIdInTree.level).toBe(1)
     expect(segmentIdInTree.chunkIndex).toBe(1)
     expect(tree[segmentIdInTree.level][segmentIdInTree.chunkIndex].address()).toStrictEqual(

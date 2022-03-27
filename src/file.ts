@@ -146,11 +146,20 @@ export function fileAddressFromInclusionProof<SpanLength extends number = typeof
   proveChunks: ChunkInclusionProof<SpanLength>[],
   proveSegment: Uint8Array,
   proveSegmentIndex: number,
+  maxChunkPayloadByteLength = 4096,
 ): Uint8Array {
+  const maxSegmentCount = Math.floor(maxChunkPayloadByteLength / SEGMENT_SIZE) // 128 by default
+  const chunkBmtLevels = Math.log2(maxSegmentCount) // 7 by default
+
   const fileSize = getSpanValue(proveChunks[proveChunks.length - 1].span)
+  let lastChunkIndex = Math.floor((fileSize - 1) / maxChunkPayloadByteLength)
   let calculatedHash = proveSegment
   for (const proveChunk of proveChunks) {
-    const { chunkIndex: parentChunkIndex } = getBmtIndexOfSegment(proveSegmentIndex, fileSize)
+    const { chunkIndex: parentChunkIndex, level } = getBmtIndexOfSegment(
+      proveSegmentIndex,
+      lastChunkIndex,
+      maxChunkPayloadByteLength,
+    )
     for (const proofSegment of proveChunk.sisterSegments) {
       const mergeSegmentFromRight = proveSegmentIndex % 2 === 0 ? true : false
       calculatedHash = mergeSegmentFromRight
@@ -162,6 +171,7 @@ export function fileAddressFromInclusionProof<SpanLength extends number = typeof
     // this line is necessary if the proveSegmentIndex
     // was in a carrierChunk
     proveSegmentIndex = parentChunkIndex
+    lastChunkIndex >>>= chunkBmtLevels + level * chunkBmtLevels
   }
 
   return calculatedHash
@@ -176,20 +186,23 @@ export function fileAddressFromInclusionProof<SpanLength extends number = typeof
  * originally created its corresponding chunk.
  *
  * @param segmentIndex the segment index of the payload
- * @param spanValue the byte length of the payload on which the BMT tree is built
+ * @param lastChunkIndex last chunk index on the BMT level of the segment
  * @param maxChunkPayloadByteLength what is the maximum byte length of a chunk. Default is 4096
  * @returns level and position of the chunk that contains segment index of the payload
  */
 export function getBmtIndexOfSegment(
   segmentIndex: number,
-  spanValue: number,
+  lastChunkIndex: number,
   maxChunkPayloadByteLength = 4096,
 ): { level: number; chunkIndex: number } {
-  const maxSegmentCount = Math.floor(maxChunkPayloadByteLength / SEGMENT_SIZE)
-  const maxChunkIndex = Math.floor(spanValue / maxChunkPayloadByteLength)
+  const maxSegmentCount = Math.floor(maxChunkPayloadByteLength / SEGMENT_SIZE) // 128 by default
   const chunkBmtLevels = Math.log2(maxSegmentCount) // 7 by default
   let level = 0
-  if (Math.floor(segmentIndex / maxSegmentCount) === maxChunkIndex && maxChunkIndex % maxSegmentCount === 0) {
+  if (
+    Math.floor(segmentIndex / maxSegmentCount) === lastChunkIndex && // the segment is subsumed under the last chunk
+    lastChunkIndex % maxSegmentCount === 0 && // the last chunk is a carrier chunk
+    lastChunkIndex !== 0 // there is only the root chunk
+  ) {
     // segmentIndex in carrier chunk
     segmentIndex >>>= chunkBmtLevels
     while (segmentIndex % SEGMENT_SIZE === 0) {
