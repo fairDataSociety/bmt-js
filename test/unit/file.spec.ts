@@ -143,4 +143,38 @@ describe('file', () => {
     expect(hash2).toStrictEqual(fileHash)
     expect(() => testGetFileHash(lastSegmentIndex + 1)).toThrowError(/^The given segment index/)
   })
+
+  it('should collect the required segments for inclusion proof 3', () => {
+    const carrierChunkFileBytes2 = Uint8Array.from(
+      FS.readFileSync(path.join(__dirname, '..', 'test-files', 'carrier-chunk-blob-2')),
+    )
+    const fileBytes = carrierChunkFileBytes2
+    const chunkedFile = makeChunkedFile(fileBytes)
+    const fileHash = chunkedFile.address()
+    // segment to prove
+    const lastSegmentIndex = Math.floor((fileBytes.length - 1) / 32)
+
+    /** Gives back the file hash calculated from the inclusion proof method */
+    const testGetFileHash = (segmentIndex: number): Uint8Array => {
+      const proofChunks = fileInclusionProofBottomUp(chunkedFile, segmentIndex)
+      let proveSegment = fileBytes.slice(
+        segmentIndex * SEGMENT_SIZE,
+        segmentIndex * SEGMENT_SIZE + SEGMENT_SIZE,
+      )
+      //padding
+      proveSegment = new Uint8Array([...proveSegment, ...new Uint8Array(SEGMENT_SIZE - proveSegment.length)])
+
+      // check the last segment has the correct span value.
+      const fileSizeFromProof = getSpanValue(proofChunks[proofChunks.length - 1].span)
+      expect(fileSizeFromProof).toBe(fileBytes.length)
+
+      return fileAddressFromInclusionProof(proofChunks, proveSegment, segmentIndex)
+    }
+    // edge case
+    const hash1 = testGetFileHash(lastSegmentIndex)
+    expect(hash1).toStrictEqual(fileHash)
+    const hash2 = testGetFileHash(1000)
+    expect(hash2).toStrictEqual(fileHash)
+    expect(() => testGetFileHash(lastSegmentIndex + 1)).toThrowError(/^The given segment index/)
+  })
 })
