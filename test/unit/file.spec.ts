@@ -145,9 +145,14 @@ describe('file', () => {
   })
 
   it('should collect the required segments for inclusion proof 3', () => {
+    // the file's byte counts will cause carrier chunk in the intermediate BMT level
+    // 128 * 4096 * 128 = 67108864 <- left tree is saturated on bmt level 1
+    // 67108864 + 2 * 4096 = 67117056 <- add two full chunks at the end thereby
+    // the zero level won't have carrier chunk, but its parent will be that.
     const carrierChunkFileBytes2 = Uint8Array.from(
       FS.readFileSync(path.join(__dirname, '..', 'test-files', 'carrier-chunk-blob-2')),
     )
+    expect(carrierChunkFileBytes2.length).toBe(67117056)
     const fileBytes = carrierChunkFileBytes2
     const chunkedFile = makeChunkedFile(fileBytes)
     const fileHash = chunkedFile.address()

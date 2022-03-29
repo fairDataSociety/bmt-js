@@ -53,4 +53,13 @@ describe('file', () => {
     const chunkedFile = makeChunkedFile(fileBytes)
     expect(bytesToHex(chunkedFile.address(), 64)).toBe(beeResult.reference)
   })
+
+  it('should work with edge case - carrier chunk in intermediate level', async () => {
+    const fileBytes = Uint8Array.from(
+      FS.readFileSync(path.join(__dirname, '..', 'test-files', 'carrier-chunk-blob-2')),
+    )
+    const beeResult = await bee.uploadData(stamp, fileBytes)
+    const chunkedFile = makeChunkedFile(fileBytes)
+    expect(bytesToHex(chunkedFile.address(), 64)).toBe(beeResult.reference)
+  })
 })
