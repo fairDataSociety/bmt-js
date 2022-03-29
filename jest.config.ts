@@ -26,7 +26,7 @@ export default async (): Promise<Config.InitialOptions> => {
 
     // An array of regexp pattern strings that are matched against all test paths, matched tests are skipped
     testPathIgnorePatterns: ['/node_modules/'],
-    testTimeout: 35000,
+    testTimeout: 60000, // 1 min
 
     // Run tests from one or more projects
     projects: [
