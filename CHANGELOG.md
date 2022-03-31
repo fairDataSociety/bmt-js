@@ -6,6 +6,8 @@
 ### ⚠ BREAKING CHANGES
 
 * bmt index calculation of intermediate carrier chunks (#4)
+  * `getBmtIndexOfSegment`:  instead of `spanVlaue`, the `lastChunkIndex` has to be given on the second parameter. It wasn't a necessary change, but it got a more explicit definition.
+  * `fileAddressFromInclusionProof`: got new optional parameter for defining the default chunk's data length that is 4KB by default
 
 ### Bug Fixes
 
