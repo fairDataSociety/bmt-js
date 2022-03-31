@@ -69,8 +69,9 @@ describe('file', () => {
     // check whether the last chunk is not present in the BMT tree 0 level -> carrierChunk
     expect(tree[0].length).toBe(leafChunks.length - 1)
     const carrierChunk = leafChunks.pop()
-    const segmentIndex = Math.floor((fileBytes.length - 1) / 32)
-    const segmentIdInTree = getBmtIndexOfSegment(segmentIndex, fileBytes.length)
+    const segmentIndex = Math.floor((fileBytes.length - 1) / 32) // last segment index as well
+    const lastChunkIndex = Math.floor((fileBytes.length - 1) / 4096)
+    const segmentIdInTree = getBmtIndexOfSegment(segmentIndex, lastChunkIndex)
     expect(segmentIdInTree.level).toBe(1)
     expect(segmentIdInTree.chunkIndex).toBe(1)
     expect(tree[segmentIdInTree.level][segmentIdInTree.chunkIndex].address()).toStrictEqual(
@@ -114,6 +115,45 @@ describe('file', () => {
 
   it('should collect the required segments for inclusion proof 2', () => {
     const fileBytes = bosBytes
+    const chunkedFile = makeChunkedFile(fileBytes)
+    const fileHash = chunkedFile.address()
+    // segment to prove
+    const lastSegmentIndex = Math.floor((fileBytes.length - 1) / 32)
+
+    /** Gives back the file hash calculated from the inclusion proof method */
+    const testGetFileHash = (segmentIndex: number): Uint8Array => {
+      const proofChunks = fileInclusionProofBottomUp(chunkedFile, segmentIndex)
+      let proveSegment = fileBytes.slice(
+        segmentIndex * SEGMENT_SIZE,
+        segmentIndex * SEGMENT_SIZE + SEGMENT_SIZE,
+      )
+      //padding
+      proveSegment = new Uint8Array([...proveSegment, ...new Uint8Array(SEGMENT_SIZE - proveSegment.length)])
+
+      // check the last segment has the correct span value.
+      const fileSizeFromProof = getSpanValue(proofChunks[proofChunks.length - 1].span)
+      expect(fileSizeFromProof).toBe(fileBytes.length)
+
+      return fileAddressFromInclusionProof(proofChunks, proveSegment, segmentIndex)
+    }
+    // edge case
+    const hash1 = testGetFileHash(lastSegmentIndex)
+    expect(hash1).toStrictEqual(fileHash)
+    const hash2 = testGetFileHash(1000)
+    expect(hash2).toStrictEqual(fileHash)
+    expect(() => testGetFileHash(lastSegmentIndex + 1)).toThrowError(/^The given segment index/)
+  })
+
+  it('should collect the required segments for inclusion proof 3', () => {
+    // the file's byte counts will cause carrier chunk in the intermediate BMT level
+    // 128 * 4096 * 128 = 67108864 <- left tree is saturated on bmt level 1
+    // 67108864 + 2 * 4096 = 67117056 <- add two full chunks at the end thereby
+    // the zero level won't have carrier chunk, but its parent will be that.
+    const carrierChunkFileBytes2 = Uint8Array.from(
+      FS.readFileSync(path.join(__dirname, '..', 'test-files', 'carrier-chunk-blob-2')),
+    )
+    expect(carrierChunkFileBytes2.length).toBe(67117056)
+    const fileBytes = carrierChunkFileBytes2
     const chunkedFile = makeChunkedFile(fileBytes)
     const fileHash = chunkedFile.address()
     // segment to prove
