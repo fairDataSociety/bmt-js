@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.0.0](https://www.github.com/fairDataSociety/bmt-js/compare/v1.0.0...v2.0.0) (2022-03-31)
+
+
+### ⚠ BREAKING CHANGES
+
+* bmt index calculation of intermediate carrier chunks (#4)
+  * `getBmtIndexOfSegment`:  instead of `spanVlaue`, the `lastChunkIndex` has to be given on the second parameter. It wasn't a necessary change, but it got a more explicit definition.
+  * `fileAddressFromInclusionProof`: got new optional parameter for defining the default chunk's data length that is 4KB by default
+
+### Bug Fixes
+
+* bmt index calculation of intermediate carrier chunks ([#4](https://www.github.com/fairDataSociety/bmt-js/issues/4)) ([c486cd5](https://www.github.com/fairDataSociety/bmt-js/commit/c486cd5b5b5316bb8abdd5f2a451b866d6aa7622))
+
 ## 1.0.0 (2022-03-25)
 
 
