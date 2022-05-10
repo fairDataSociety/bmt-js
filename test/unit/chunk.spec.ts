@@ -1,6 +1,6 @@
 import { Utils, makeChunk, makeSpan, rootHashFromInclusionProof } from '../../src'
 import { SEGMENT_SIZE } from '../../src/chunk'
-import { keccak256Hash } from '../../src/utils'
+import { bytesToHex, keccak256Hash } from '../../src/utils'
 
 describe('chunk', () => {
   const payload = new Uint8Array([1, 2, 3])
@@ -56,5 +56,46 @@ describe('chunk', () => {
     expect(rootHash3).toStrictEqual(rootHash1)
 
     expect(() => testGetRootHash(128)).toThrow()
+  })
+
+  it('should run the same unit test that Bee client has', () => {
+    const data = new Uint8Array(new TextEncoder().encode('hello world'))
+    const chunk = makeChunk(data)
+
+    // proof for the leftmost
+    const inclusionProofSegments = chunk.inclusionProof(0).map(v => bytesToHex(v, 64))
+    expect(inclusionProofSegments).toStrictEqual([
+      '0000000000000000000000000000000000000000000000000000000000000000',
+      'ad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5',
+      'b4c11951957c6f8f642c4af61cd6b24640fec6dc7fc607ee8206a99e92410d30',
+      '21ddb9a356815c3fac1026b6dec5df3124afbadb485c9ba5a3e3398a04b7ba85',
+      'e58769b32a1beaf1ea27375a44095a0d1fb664ce2dd358e7fcbfb78c26a19344',
+      '0eb01ebfc9ed27500cd4dfc979272d1f0913cc9f66540d7e8005811109e1cf2d',
+      '887c22bd8750d34016ac3c66b5ff102dacdd73f6b014e710b51e8022af9a1968',
+    ])
+
+    // proof for the rightmost
+    const inclusionProofSegments2 = chunk.inclusionProof(127).map(v => bytesToHex(v, 64))
+    expect(inclusionProofSegments2).toStrictEqual([
+      '0000000000000000000000000000000000000000000000000000000000000000',
+      'ad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5',
+      'b4c11951957c6f8f642c4af61cd6b24640fec6dc7fc607ee8206a99e92410d30',
+      '21ddb9a356815c3fac1026b6dec5df3124afbadb485c9ba5a3e3398a04b7ba85',
+      'e58769b32a1beaf1ea27375a44095a0d1fb664ce2dd358e7fcbfb78c26a19344',
+      '0eb01ebfc9ed27500cd4dfc979272d1f0913cc9f66540d7e8005811109e1cf2d',
+      '745bae095b6ff5416b4a351a167f731db6d6f5924f30cd88d48e74261795d27b',
+    ])
+
+    // proof for the middle
+    const inclusionProofSegments3 = chunk.inclusionProof(64).map(v => bytesToHex(v, 64))
+    expect(inclusionProofSegments3).toStrictEqual([
+      '0000000000000000000000000000000000000000000000000000000000000000',
+      'ad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5',
+      'b4c11951957c6f8f642c4af61cd6b24640fec6dc7fc607ee8206a99e92410d30',
+      '21ddb9a356815c3fac1026b6dec5df3124afbadb485c9ba5a3e3398a04b7ba85',
+      'e58769b32a1beaf1ea27375a44095a0d1fb664ce2dd358e7fcbfb78c26a19344',
+      '0eb01ebfc9ed27500cd4dfc979272d1f0913cc9f66540d7e8005811109e1cf2d',
+      '745bae095b6ff5416b4a351a167f731db6d6f5924f30cd88d48e74261795d27b',
+    ])
   })
 })
