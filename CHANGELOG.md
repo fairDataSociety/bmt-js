@@ -1,5 +1,12 @@
 # Changelog
 
+### [2.0.1](https://www.github.com/fairDataSociety/bmt-js/compare/v2.0.0...v2.0.1) (2022-05-10)
+
+
+### Bug Fixes
+
+* main ref ([#7](https://www.github.com/fairDataSociety/bmt-js/issues/7)) ([877a4f6](https://www.github.com/fairDataSociety/bmt-js/commit/877a4f60fd1da4a30716ac0b60bad98ee91c653e))
+
 ## [2.0.0](https://www.github.com/fairDataSociety/bmt-js/compare/v1.0.0...v2.0.0) (2022-03-31)
 
 
