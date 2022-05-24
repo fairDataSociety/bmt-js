@@ -5,6 +5,7 @@ import FS from 'fs'
 import path from 'path'
 import { bytesToHex } from '../../src/utils'
 import { fileAddressFromInclusionProof, getBmtIndexOfSegment } from '../../src/file'
+import { BN } from 'bn.js'
 
 describe('file', () => {
   let bosBytes: Uint8Array
@@ -104,6 +105,9 @@ describe('file', () => {
       const fileSizeFromProof = getSpanValue(proofChunks[proofChunks.length - 1].span)
       expect(fileSizeFromProof).toBe(fileBytes.length)
 
+      const fileSizeFromProofBN = new BN(proofChunks[proofChunks.length - 1].spanValue).toNumber()
+      expect(fileSizeFromProofBN).toBe(fileBytes.length)
+
       return fileAddressFromInclusionProof(proofChunks, proveSegment, segmentIndex)
     }
     // edge case
@@ -133,6 +137,9 @@ describe('file', () => {
       // check the last segment has the correct span value.
       const fileSizeFromProof = getSpanValue(proofChunks[proofChunks.length - 1].span)
       expect(fileSizeFromProof).toBe(fileBytes.length)
+
+      const fileSizeFromProofBN = new BN(proofChunks[proofChunks.length - 1].spanValue).toNumber()
+      expect(fileSizeFromProofBN).toBe(fileBytes.length)
 
       return fileAddressFromInclusionProof(proofChunks, proveSegment, segmentIndex)
     }
@@ -172,6 +179,9 @@ describe('file', () => {
       // check the last segment has the correct span value.
       const fileSizeFromProof = getSpanValue(proofChunks[proofChunks.length - 1].span)
       expect(fileSizeFromProof).toBe(fileBytes.length)
+
+      const fileSizeFromProofBN = new BN(proofChunks[proofChunks.length - 1].spanValue).toNumber()
+      expect(fileSizeFromProofBN).toBe(fileBytes.length)
 
       return fileAddressFromInclusionProof(proofChunks, proveSegment, segmentIndex)
     }

@@ -2,9 +2,11 @@ import { Chunk, ChunkAddress, getSpanValue, makeChunk, makeSpan, Span } from '.'
 import { DEFAULT_MAX_PAYLOAD_SIZE, SEGMENT_SIZE } from './chunk'
 import { DEFAULT_SPAN_SIZE } from './span'
 import { Bytes, Flavor, keccak256Hash, serializeBytes } from './utils'
+import { BN } from 'bn.js'
 
 export interface ChunkInclusionProof<SpanLength extends number = typeof DEFAULT_SPAN_SIZE> {
   span: Bytes<SpanLength>
+  spanValue: Uint8Array
   sisterSegments: Uint8Array[]
 }
 
@@ -120,7 +122,11 @@ export function fileInclusionProofBottomUp<
     }
     const chunk = levelChunks[chunkIndexForProof]
     const sisterSegments = chunk.inclusionProof(chunkSegmentIndex)
-    chunkInclusionProofs.push({ sisterSegments, span: chunk.span() })
+    chunkInclusionProofs.push({
+      sisterSegments,
+      span: chunk.span(),
+      spanValue: new BN(chunk.span()).toBuffer('le', 8),
+    })
     segmentIndex = chunkIndexForProof
 
     const { nextLevelChunks, nextLevelCarrierChunk } = nextBmtLevel(levelChunks, carrierChunk)
@@ -128,7 +134,12 @@ export function fileInclusionProofBottomUp<
     carrierChunk = nextLevelCarrierChunk
   }
   const sisterSegments = levelChunks[0].inclusionProof(segmentIndex)
-  chunkInclusionProofs.push({ sisterSegments, span: levelChunks[0].span() })
+  const span = levelChunks[0].span()
+  chunkInclusionProofs.push({
+    sisterSegments,
+    span,
+    spanValue: new BN(span).toBuffer('le', 8),
+  })
 
   return chunkInclusionProofs
 }
