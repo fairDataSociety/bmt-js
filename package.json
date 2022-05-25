@@ -41,7 +41,6 @@
     "@babel/preset-typescript": "^7.16.7",
     "@ethersphere/bee-js": "^3.3.1",
     "@jest/types": "^27.5.1",
-    "@types/bn.js": "^5.1.0",
     "@types/jest": "^27.4.1",
     "@types/terser-webpack-plugin": "^5.2.0",
     "@types/webpack-bundle-analyzer": "^4.4.1",
