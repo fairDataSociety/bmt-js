@@ -5,7 +5,6 @@ import FS from 'fs'
 import path from 'path'
 import { bytesToHex } from '../../src/utils'
 import { fileAddressFromInclusionProof, getBmtIndexOfSegment } from '../../src/file'
-import { BN } from 'bn.js'
 
 describe('file', () => {
   let bosBytes: Uint8Array
@@ -22,7 +21,7 @@ describe('file', () => {
     const payload = new Uint8Array([1, 2, 3])
 
     const chunkedFile = makeChunkedFile(payload)
-    const expectedSpan = new Uint8Array([3, 0, 0, 0, 0, 0, 0, 0])
+    const expectedSpan = new Uint8Array([0, 0, 0, 3, 0, 0, 0, 0])
 
     expect(chunkedFile.leafChunks().length).toBe(1)
     const onlyChunk = chunkedFile.leafChunks()[0]
@@ -38,7 +37,7 @@ describe('file', () => {
     const chunkedFile = makeChunkedFile(fileBytes)
 
     expect(getSpanValue(chunkedFile.span())).toStrictEqual(15726634)
-    expect(getSpanValue(new Uint8Array([42, 248, 239, 0, 0, 0, 0, 0]))).toStrictEqual(15726634)
+    expect(getSpanValue(new Uint8Array([0, 239, 248, 42, 0, 0, 0, 0]))).toStrictEqual(15726634)
 
     const tree = chunkedFile.bmt()
     expect(tree.length).toBe(3)
@@ -57,7 +56,7 @@ describe('file', () => {
     expect(chunkedFile.rootChunk().payload.length).toBe(960)
 
     expect(bytesToHex(chunkedFile.address(), 64)).toStrictEqual(
-      'b8d17f296190ccc09a2c36b7a59d0f23c4479a3958c3bb02dc669466ec919c5d', //bee generated hash
+      '6c1e5b104101bf250846471b6fccd2e76a186fbfa4b5ba03632442ae785640cb', //bee generated hash
     )
   })
 
@@ -105,9 +104,6 @@ describe('file', () => {
       const fileSizeFromProof = getSpanValue(proofChunks[proofChunks.length - 1].span)
       expect(fileSizeFromProof).toBe(fileBytes.length)
 
-      const fileSizeFromProofBN = new BN(proofChunks[proofChunks.length - 1].spanValue).toNumber()
-      expect(fileSizeFromProofBN).toBe(fileBytes.length)
-
       return fileAddressFromInclusionProof(proofChunks, proveSegment, segmentIndex)
     }
     // edge case
@@ -137,9 +133,6 @@ describe('file', () => {
       // check the last segment has the correct span value.
       const fileSizeFromProof = getSpanValue(proofChunks[proofChunks.length - 1].span)
       expect(fileSizeFromProof).toBe(fileBytes.length)
-
-      const fileSizeFromProofBN = new BN(proofChunks[proofChunks.length - 1].spanValue).toNumber()
-      expect(fileSizeFromProofBN).toBe(fileBytes.length)
 
       return fileAddressFromInclusionProof(proofChunks, proveSegment, segmentIndex)
     }
@@ -179,9 +172,6 @@ describe('file', () => {
       // check the last segment has the correct span value.
       const fileSizeFromProof = getSpanValue(proofChunks[proofChunks.length - 1].span)
       expect(fileSizeFromProof).toBe(fileBytes.length)
-
-      const fileSizeFromProofBN = new BN(proofChunks[proofChunks.length - 1].spanValue).toNumber()
-      expect(fileSizeFromProofBN).toBe(fileBytes.length)
 
       return fileAddressFromInclusionProof(proofChunks, proveSegment, segmentIndex)
     }

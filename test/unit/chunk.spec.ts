@@ -7,7 +7,7 @@ describe('chunk', () => {
 
   test('should initialise Chunk object', () => {
     const chunk = makeChunk(payload)
-    const expectedSpan = new Uint8Array([3, 0, 0, 0, 0, 0, 0, 0])
+    const expectedSpan = new Uint8Array([0, 0, 0, 3, 0, 0, 0, 0])
 
     expect(chunk.payload).toStrictEqual(payload)
     expect(chunk.span()).toStrictEqual(expectedSpan)
@@ -16,7 +16,7 @@ describe('chunk', () => {
   })
 
   it('should produce correct BMT hash', () => {
-    const hash = 'ca6357a08e317d15ec560fef34e4c45f8f19f01c372aa70f1da72bfa7f1a4338'
+    const hash = '9925a4ed486563129672a7c005090c6490cd3d209187ae0cac6b02b4e43d0e2b'
     const chunk = makeChunk(payload)
 
     const result = chunk.address()
