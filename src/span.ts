@@ -29,7 +29,7 @@ export function makeSpan<Length extends number>(value: number, length?: Length):
 
   const span = new Uint8Array(spanLength)
   const dataView = new DataView(span.buffer)
-  const littleEndian = true
+  const littleEndian = false
   const lengthLower32 = value & 0xffffffff
 
   dataView.setUint32(0, lengthLower32, littleEndian)
@@ -40,5 +40,5 @@ export function makeSpan<Length extends number>(value: number, length?: Length):
 export function getSpanValue<Length extends number = 8>(span: Span<Length>): number {
   const dataView = new DataView(span.buffer)
 
-  return dataView.getUint32(0, true)
+  return dataView.getUint32(0, false)
 }

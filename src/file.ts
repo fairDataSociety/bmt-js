@@ -5,7 +5,6 @@ import { Bytes, Flavor, keccak256Hash, serializeBytes } from './utils'
 
 export interface ChunkInclusionProof<SpanLength extends number = typeof DEFAULT_SPAN_SIZE> {
   span: Bytes<SpanLength>
-  soliditySpan: number
   sisterSegments: Uint8Array[]
 }
 
@@ -124,7 +123,6 @@ export function fileInclusionProofBottomUp<
     chunkInclusionProofs.push({
       sisterSegments,
       span: chunk.span(),
-      soliditySpan: getSpanValue(chunk.span()),
     })
     segmentIndex = chunkIndexForProof
 
@@ -137,7 +135,6 @@ export function fileInclusionProofBottomUp<
   chunkInclusionProofs.push({
     sisterSegments,
     span,
-    soliditySpan: getSpanValue(span),
   })
 
   return chunkInclusionProofs
