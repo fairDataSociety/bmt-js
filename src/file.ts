@@ -44,8 +44,12 @@ export function makeChunkedFile<
   //splitter
   const leafChunks = () => {
     const chunks: Chunk<MaxChunkPayloadLength, SpanLength>[] = []
-    for (let offset = 0; offset < payload.length; offset += maxPayloadLength) {
-      chunks.push(makeChunk(payload.slice(offset, offset + maxPayloadLength), options))
+    if (payload.length === 0) {
+      chunks.push(makeChunk(new Uint8Array(), options))
+    } else {
+      for (let offset = 0; offset < payload.length; offset += maxPayloadLength) {
+        chunks.push(makeChunk(payload.slice(offset, offset + maxPayloadLength), options))
+      }
     }
 
     return chunks
