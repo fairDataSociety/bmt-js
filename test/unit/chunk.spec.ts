@@ -99,7 +99,7 @@ describe('chunk', () => {
     ])
   })
 
-  it('should calculate the address for empty bytes', () => {
+  it('should calculate the address of empty bytes', () => {
     const bytes = new Uint8Array()
     const chunk = makeChunk(bytes)
     expect(bytesToHex(chunk.address(), 64)).toBe(

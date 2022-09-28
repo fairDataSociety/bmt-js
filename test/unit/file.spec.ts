@@ -183,7 +183,7 @@ describe('file', () => {
     expect(() => testGetFileHash(lastSegmentIndex + 1)).toThrowError(/^The given segment index/)
   })
 
-  it('should calculate the address for empty bytes', () => {
+  it('should calculate the address of empty bytes', () => {
     const bytes = new Uint8Array()
     const chunkedFile = makeChunkedFile(bytes)
     const bmt = chunkedFile.bmt()
