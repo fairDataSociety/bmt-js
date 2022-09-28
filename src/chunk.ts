@@ -14,7 +14,7 @@ export interface Chunk<
   MaxPayloadLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
   SpanLength extends number = typeof DEFAULT_SPAN_SIZE,
 > extends Flavor<'Chunk'> {
-  readonly payload: FlexBytes<1, MaxPayloadLength>
+  readonly payload: FlexBytes<0, MaxPayloadLength>
   maxPayloadLength: MaxPayloadLength
   spanLength: SpanLength
   data(): ValidChunkData
@@ -46,7 +46,7 @@ export function makeChunk<
   const spanLength = (options?.spanLength || DEFAULT_SPAN_SIZE) as SpanLength
   const spanValue = options?.startingSpanValue || payloadBytes.length
 
-  assertFlexBytes(payloadBytes, 1, maxPayloadLength)
+  assertFlexBytes(payloadBytes, 0, maxPayloadLength)
   const paddingChunkLength = new Uint8Array(maxPayloadLength - payloadBytes.length)
   const span = () => makeSpan(spanValue, spanLength)
   const data = () => serializeBytes(payloadBytes, new Uint8Array(paddingChunkLength)) as ValidChunkData
