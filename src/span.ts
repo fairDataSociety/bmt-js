@@ -19,7 +19,7 @@ export const MAX_SPAN_LENGTH = 2 ** 32 - 1
 export function makeSpan<Length extends number>(value: number, length?: Length): Span<Length> {
   const spanLength = length || DEFAULT_SPAN_SIZE
 
-  if (value <= 0) {
+  if (value < 0) {
     throw new Error(`invalid length for span: ${value}`)
   }
 
