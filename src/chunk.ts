@@ -1,4 +1,3 @@
-import { keccak256 } from 'js-sha3'
 import { DEFAULT_SPAN_SIZE, makeSpan, Span } from './span'
 import { assertFlexBytes, Bytes, keccak256Hash, Flavor, FlexBytes, serializeBytes } from './utils'
 
@@ -81,7 +80,7 @@ export function bmtRootHash(
 
     // in each round we hash the segment pairs together
     for (let offset = 0; offset < input.length; offset += SEGMENT_PAIR_SIZE) {
-      const hashNumbers = keccak256.array(input.slice(offset, offset + SEGMENT_PAIR_SIZE))
+      const hashNumbers = keccak256Hash(input.slice(offset, offset + SEGMENT_PAIR_SIZE))
       output.set(hashNumbers, offset / 2)
     }
 
@@ -165,7 +164,7 @@ function bmt(payload: Uint8Array, maxPayloadLength: number = DEFAULT_MAX_PAYLOAD
 
     // in each round we hash the segment pairs together
     for (let offset = 0; offset < input.length; offset += SEGMENT_PAIR_SIZE) {
-      const hashNumbers = keccak256.array(input.slice(offset, offset + SEGMENT_PAIR_SIZE))
+      const hashNumbers = keccak256Hash(input.slice(offset, offset + SEGMENT_PAIR_SIZE))
       output.set(hashNumbers, offset / 2)
     }
 
@@ -205,3 +204,6 @@ function chunkAddress<SpanLength extends number = typeof DEFAULT_SPAN_SIZE>(
 
   return chunkHash
 }
+
+/**  */
+// function hash() {}
