@@ -204,6 +204,3 @@ function chunkAddress<SpanLength extends number = typeof DEFAULT_SPAN_SIZE>(
 
   return chunkHash
 }
-
-/**  */
-// function hash() {}
