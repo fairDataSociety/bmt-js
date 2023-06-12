@@ -1,5 +1,12 @@
 # Changelog
 
+### [2.0.2](https://www.github.com/fairDataSociety/bmt-js/compare/v2.0.1...v2.0.2) (2023-06-12)
+
+
+### Bug Fixes
+
+* allow 0 payload ([#18](https://www.github.com/fairDataSociety/bmt-js/issues/18)) ([10687d5](https://www.github.com/fairDataSociety/bmt-js/commit/10687d50b3dc01f5dbc80db3ff123ebe967d984f))
+
 ### [2.0.1](https://www.github.com/fairDataSociety/bmt-js/compare/v2.0.0...v2.0.1) (2022-05-10)
 
 
