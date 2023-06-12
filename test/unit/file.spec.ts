@@ -75,7 +75,7 @@ describe('file', () => {
     expect(segmentIdInTree.level).toBe(1)
     expect(segmentIdInTree.chunkIndex).toBe(1)
     expect(tree[segmentIdInTree.level][segmentIdInTree.chunkIndex].address()).toStrictEqual(
-      carrierChunk.address(),
+      carrierChunk!.address(),
     )
   })
 
@@ -181,5 +181,16 @@ describe('file', () => {
     const hash2 = testGetFileHash(1000)
     expect(hash2).toStrictEqual(fileHash)
     expect(() => testGetFileHash(lastSegmentIndex + 1)).toThrowError(/^The given segment index/)
+  })
+
+  it('should calculate the address of empty bytes', () => {
+    const bytes = new Uint8Array()
+    const chunkedFile = makeChunkedFile(bytes)
+    const bmt = chunkedFile.bmt()
+    expect(bmt.length).toBe(1)
+    expect(bmt[0].length).toBe(1)
+    expect(bytesToHex(chunkedFile.address(), 64)).toBe(
+      'b34ca8c22b9e982354f9c7f50b470d66db428d880c8a904d5fe4ec9713171526',
+    )
   })
 })

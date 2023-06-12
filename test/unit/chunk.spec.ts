@@ -98,4 +98,12 @@ describe('chunk', () => {
       '745bae095b6ff5416b4a351a167f731db6d6f5924f30cd88d48e74261795d27b',
     ])
   })
+
+  it('should calculate the address of empty bytes', () => {
+    const bytes = new Uint8Array()
+    const chunk = makeChunk(bytes)
+    expect(bytesToHex(chunk.address(), 64)).toBe(
+      'b34ca8c22b9e982354f9c7f50b470d66db428d880c8a904d5fe4ec9713171526',
+    )
+  })
 })

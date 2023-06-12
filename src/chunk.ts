@@ -1,4 +1,3 @@
-import { keccak256 } from 'js-sha3'
 import { DEFAULT_SPAN_SIZE, makeSpan, Span } from './span'
 import { assertFlexBytes, Bytes, keccak256Hash, Flavor, FlexBytes, serializeBytes } from './utils'
 
@@ -14,7 +13,7 @@ export interface Chunk<
   MaxPayloadLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
   SpanLength extends number = typeof DEFAULT_SPAN_SIZE,
 > extends Flavor<'Chunk'> {
-  readonly payload: FlexBytes<1, MaxPayloadLength>
+  readonly payload: FlexBytes<0, MaxPayloadLength>
   maxPayloadLength: MaxPayloadLength
   spanLength: SpanLength
   data(): ValidChunkData
@@ -46,7 +45,7 @@ export function makeChunk<
   const spanLength = (options?.spanLength || DEFAULT_SPAN_SIZE) as SpanLength
   const spanValue = options?.startingSpanValue || payloadBytes.length
 
-  assertFlexBytes(payloadBytes, 1, maxPayloadLength)
+  assertFlexBytes(payloadBytes, 0, maxPayloadLength)
   const paddingChunkLength = new Uint8Array(maxPayloadLength - payloadBytes.length)
   const span = () => makeSpan(spanValue, spanLength)
   const data = () => serializeBytes(payloadBytes, new Uint8Array(paddingChunkLength)) as ValidChunkData
@@ -81,7 +80,7 @@ export function bmtRootHash(
 
     // in each round we hash the segment pairs together
     for (let offset = 0; offset < input.length; offset += SEGMENT_PAIR_SIZE) {
-      const hashNumbers = keccak256.array(input.slice(offset, offset + SEGMENT_PAIR_SIZE))
+      const hashNumbers = keccak256Hash(input.slice(offset, offset + SEGMENT_PAIR_SIZE))
       output.set(hashNumbers, offset / 2)
     }
 
@@ -165,7 +164,7 @@ function bmt(payload: Uint8Array, maxPayloadLength: number = DEFAULT_MAX_PAYLOAD
 
     // in each round we hash the segment pairs together
     for (let offset = 0; offset < input.length; offset += SEGMENT_PAIR_SIZE) {
-      const hashNumbers = keccak256.array(input.slice(offset, offset + SEGMENT_PAIR_SIZE))
+      const hashNumbers = keccak256Hash(input.slice(offset, offset + SEGMENT_PAIR_SIZE))
       output.set(hashNumbers, offset / 2)
     }
 
