@@ -8,6 +8,9 @@ import { bytesToHex } from '../../src/utils'
 const beeUrl = process.env.BEE_API_URL || 'http://localhost:1633'
 const bee = new Bee(beeUrl)
 const stamp = process.env.BEE_POSTAGE
+if (!stamp) {
+  throw new Error('BEE_POSTAGE system environment variable is not defined')
+}
 
 describe('file', () => {
   it('should produce same chunk like Bee for data < 4KB', async () => {
