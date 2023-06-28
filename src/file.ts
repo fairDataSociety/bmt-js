@@ -165,11 +165,11 @@ export function fileAddressFromInclusionProof<SpanLength extends number = typeof
       maxChunkPayloadByteLength,
     )
     for (const proofSegment of proveChunk.sisterSegments) {
-      const mergeSegmentFromRight = proveSegmentIndex % 2 === 0 ? true : false
+      const mergeSegmentFromRight = proveSegmentIndex % 2 === 0
       calculatedHash = mergeSegmentFromRight
         ? keccak256Hash(calculatedHash, proofSegment)
         : keccak256Hash(proofSegment, calculatedHash)
-      proveSegmentIndex = Math.floor(proveSegmentIndex / 2)
+      proveSegmentIndex >>>= 2
     }
     calculatedHash = keccak256Hash(proveChunk.span, calculatedHash)
     // this line is necessary if the proveSegmentIndex
