@@ -148,7 +148,7 @@ export function rootHashFromInclusionProof(
 
   let calculatedHash = proveSegment
   for (const proofSegment of proofSegments) {
-    const mergeSegmentFromRight = proveSegmentIndex % 2 === 0 ? true : false
+    const mergeSegmentFromRight = proveSegmentIndex % 2 === 0
     calculatedHash = mergeSegmentFromRight
       ? hashFn(calculatedHash, proofSegment)
       : hashFn(proofSegment, calculatedHash)
@@ -218,7 +218,7 @@ function chunkAddress<SpanLength extends number = typeof DEFAULT_SPAN_SIZE>(
 ): ChunkAddress {
   const hashFn = options?.hashFn ? options.hashFn : keccak256Hash
   const span = chunkSpan || makeSpan(payload.length, spanLength)
-  const rootHash = bmtRootHash(payload)
+  const rootHash = bmtRootHash(payload, DEFAULT_MAX_PAYLOAD_SIZE, options)
   const chunkHashInput = new Uint8Array([...span, ...rootHash])
   const chunkHash = hashFn(chunkHashInput)
 
