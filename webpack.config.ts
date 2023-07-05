@@ -13,9 +13,7 @@ interface WebpackEnvParams {
 
 const base = async (env?: Partial<WebpackEnvParams>): Promise<Configuration> => {
   const isProduction = env?.mode === 'production'
-  const filename =
-    env?.fileName ||
-    ['index', isProduction ? '.min' : null, '.js'].filter(Boolean).join('')
+  const filename = env?.fileName || 'index.js'
   const entry = Path.resolve(__dirname, 'src')
   const path = Path.resolve(__dirname, 'dist')
   const target = 'web'
@@ -29,12 +27,12 @@ const base = async (env?: Partial<WebpackEnvParams>): Promise<Configuration> => 
   return {
     bail: Boolean(isProduction),
     mode: env?.mode || 'development',
-    devtool: isProduction ? 'source-map' : 'cheap-module-source-map',
+    devtool: 'eval-source-map',
     entry,
     output: {
       path,
       filename,
-      sourceMapFilename: filename + '.map',
+      // sourceMapFilename: filename + '.map',
       library: 'BmtJs',
       libraryTarget: 'umd',
       globalObject: 'this',
@@ -82,7 +80,7 @@ const base = async (env?: Partial<WebpackEnvParams>): Promise<Configuration> => 
               ecma: 5,
               comments: false,
             },
-            sourceMap: true
+            // sourceMap: true,
           },
           // Use multi-process parallel running to improve the build speed
           // Default number of concurrent runs: os.cpus().length - 1

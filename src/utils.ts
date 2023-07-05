@@ -109,3 +109,5 @@ export function equalBytes(a: Uint8Array, b: Uint8Array): boolean {
 
   return a.every((byte, index) => b[index] === byte)
 }
+
+export { Message }
