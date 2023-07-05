@@ -169,7 +169,7 @@ export function fileAddressFromInclusionProof<SpanLength extends number = typeof
       calculatedHash = mergeSegmentFromRight
         ? keccak256Hash(calculatedHash, proofSegment)
         : keccak256Hash(proofSegment, calculatedHash)
-      proveSegmentIndex >>>= 2
+      proveSegmentIndex = Math.floor(proveSegmentIndex / 2)
     }
     calculatedHash = keccak256Hash(proveChunk.span, calculatedHash)
     // this line is necessary if the proveSegmentIndex
