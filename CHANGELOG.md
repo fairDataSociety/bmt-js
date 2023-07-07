@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.1.0](https://www.github.com/fairDataSociety/bmt-js/compare/v2.0.1...v2.1.0) (2023-07-05)
+
+
+### Features
+
+* custom hasher for chunks ([#21](https://www.github.com/fairDataSociety/bmt-js/issues/21)) ([2003efe](https://www.github.com/fairDataSociety/bmt-js/commit/2003efed9b58f240e51b9b983dbe4efbb37538ca))
+
+
+### Bug Fixes
+
+* allow 0 payload ([#18](https://www.github.com/fairDataSociety/bmt-js/issues/18)) ([10687d5](https://www.github.com/fairDataSociety/bmt-js/commit/10687d50b3dc01f5dbc80db3ff123ebe967d984f))
+
 ### [2.0.1](https://www.github.com/fairDataSociety/bmt-js/compare/v2.0.0...v2.0.1) (2022-05-10)
 
 
