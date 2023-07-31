@@ -17,7 +17,7 @@ First, it splits the data into `chunks` that have maximum 4KB payload by default
 If the payload byte length cannot fit exactly to this chunk division, the rightmost chunk's data will be padded with zeros in order to have fixed length data for the BMT operations.
 
 This basic unit is also required to effectively distribute data on decentralized storage systems with regard to _plausible deniability_, _garbage collection_, _load balancing_ and else. 
-For more details, please visit [Etherem Swarm]() webpage that has full implementation of this logic.
+For more details, please visit [Etherem Swarm](https://www.ethswarm.org/) webpage that has full implementation of this logic.
 
 The used hashing algorithm is the `keccak256` function that results in a 32 bytes long `segment`.
 
@@ -48,6 +48,12 @@ The first/best use-case for this can happen via smart contracts that implement t
 To get these inclusion segments, the library collects all required segments from the BMT tree that can be used for input of smart contract validation parameters.
 
 ![Inclusion proof](./docs/inclusion-proof.png)
+
+![YT vid](./docs/nugaon_present.png)
+
+## [Click here to watch our explanation in YouTube](https://www.youtube.com/watch?v=1FprAt0VTxI)
+
+
 
 # API
 
