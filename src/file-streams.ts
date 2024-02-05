@@ -274,7 +274,7 @@ function bmtWithStreams<
 
         levelChunks.forEach(chunk => outputStream.push(chunk))
 
-        while (levelChunks.length !== 1 || carrierChunk) {
+        while (levelChunks.length !== 1) {
           outputStream.push(makeChunk(new Uint8Array()))
 
           const { nextLevelChunks, nextLevelCarrierChunk } = nextBmtLevel(levelChunks, carrierChunk)
@@ -418,6 +418,7 @@ function firstBmtLevelWithStreams<
   const maxSegmentCount = maxPayloadLength / SEGMENT_SIZE
   let nextLevelChunksLength = Math.ceil(chunksLength / maxSegmentCount)
   const carrierChunkIncluded = nextLevelChunksLength % maxSegmentCount !== 0
+  let receivedChunks = 1
 
   if (popCarrierChunk) {
     if (carrierChunkIncluded) {
@@ -438,16 +439,21 @@ function firstBmtLevelWithStreams<
   const handleChunk = (chunk: Chunk<MaxChunkPayloadLength, SpanLength>) => {
     generatedChunksCount += 1
 
-    if (generatedChunksCount === nextLevelChunksLength && nextPopCarrierChunk) {
-      nextCarrierChunk.resolve(chunk)
-    } else {
+    if (generatedChunksCount <= nextLevelChunksLength) {
       nextLevelChunks.push(chunk)
+    } else if (nextPopCarrierChunk) {
+      nextCarrierChunk.resolve(chunk)
     }
   }
 
   chunks.on('data', chunk => {
     try {
-      nextLevelChunksBuffer.push(chunk)
+      receivedChunks += 1
+
+      if (receivedChunks <= chunksLength || !popCarrierChunk) {
+        nextLevelChunksBuffer.push(chunk)
+      }
+
       lastChunk = chunk
 
       for (
