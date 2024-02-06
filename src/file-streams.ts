@@ -120,7 +120,7 @@ export function createBmtWithStreams<
 }
 
 /**
- * Calculates root chunk for leaf chunks received by a readable stream
+ * Calculates root chunk for bytes received by a readable stream
  * @param payload Readable stream of Uint8Array data
  * @param payloadLength Total number of bytes in payload
  * @param chunkStreamFactory A factory function for a readable stream

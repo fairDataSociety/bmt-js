@@ -71,6 +71,12 @@ You can import the followings directly from `@fairdatasociety/bmt-js`:
   * address()                     # gives back the calculated chunk address of file data
   * span()                        # serialized span value of the file
   * bmt()                         # gives back the Binary Merkle Tree of the file data
+* ChunkedFileDeferred
+  * payload                       # the passed byte stream with which the object was initialized.
+  * leafChunks                    # data chunks stream of the file data
+  * rootChunk                     # promise that resolves topmost chunk in the file BMT
+  * address                       # promise of the calculated chunk address of file data
+  * bmt                           # stream of the Binary Merkle Tree of the file data (levels are separated by an empty chunk)
 * ChunkInclusionProof             # groups chunk inclusion proof segments and span value of a chunk
 * ChunkAddress                    # chunk address resulted from BMT hashing of data. It is used also fole FileAddress
 * Span                            # span value in byte format. Indicates how much data subsumed under the Chunk/File
@@ -85,6 +91,9 @@ You can import the followings directly from `@fairdatasociety/bmt-js`:
 * getBmtIndexOfSegment            # get the chunk's position of a given payload segment index in the BMT tree
 * fileInclusionProofBottomUp      # gives back required sister segments of a given payload segment index for inclusion proof
 * fileAddressFromInclusionProof   # gives back the file address that is calculated with only the inclusion proof segments and the corresponding proved segment and its position.
+* makeChunkedFileWithStreams      # makes `Chunk` helper object for performing BMT actions on file data using streams
+* createBmtWithStreams            # generates BMT chunks and outputs them to a readable stream.
+* createBmtRootChunkWithStreams   # calculates root chunk for bytes received by a readable stream
 
 ## Other objects
 
