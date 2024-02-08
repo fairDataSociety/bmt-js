@@ -2,7 +2,6 @@
 import { Readable, Transform } from 'node:stream'
 import { Bee, SPAN_SIZE } from '@ethersphere/bee-js'
 import FS from 'fs'
-import { stat } from 'fs/promises'
 import path from 'path'
 import { makeChunkedFile } from '../../src'
 import { Chunk, DEFAULT_MAX_PAYLOAD_SIZE } from '../../src/chunk'
@@ -83,11 +82,9 @@ describe('file-streams', () => {
 
   it('should produce same chunk like Bee for data < 4KB', async () => {
     const filePath = path.join(__dirname, '..', 'test-files', 'text.txt')
-    const { size } = await stat(filePath)
 
     const chunkedFileFromStream = makeChunkedFileWithStreams(
       transformToByteStream(FS.createReadStream(filePath)),
-      size,
       () =>
         new Readable({
           objectMode: true,
@@ -105,11 +102,9 @@ describe('file-streams', () => {
 
   it('should produce same BMT tree like Bee for data > 4KB', async () => {
     const filePath = path.join(__dirname, '..', 'test-files', 'The-Book-of-Swarm.pdf')
-    const { size } = await stat(filePath)
 
     const chunkedFileFromStream = makeChunkedFileWithStreams(
       transformToByteStream(FS.createReadStream(filePath)),
-      size,
       () =>
         new Readable({
           objectMode: true,
@@ -151,11 +146,9 @@ describe('file-streams', () => {
 
   it('should work with edge case - carrier chunk', async () => {
     const filePath = path.join(__dirname, '..', 'test-files', 'carrier-chunk-blob')
-    const { size } = await stat(filePath)
 
     const rootChunk = await createBmtRootChunkWithStreams(
       transformToByteStream(FS.createReadStream(filePath)),
-      size,
       () =>
         new Readable({
           objectMode: true,
@@ -171,11 +164,9 @@ describe('file-streams', () => {
 
   it('should work with edge case - carrier chunk in intermediate level', async () => {
     const filePath = path.join(__dirname, '..', 'test-files', 'carrier-chunk-blob-2')
-    const { size } = await stat(filePath)
 
     const rootChunk = await createBmtRootChunkWithStreams(
       transformToByteStream(FS.createReadStream(filePath)),
-      size,
       () =>
         new Readable({
           objectMode: true,

@@ -21,35 +21,31 @@ export interface ChunkedFileDeferred<
   rootChunk: Promise<Chunk<MaxChunkPayloadLength, SpanLength>>
   payload: GenericReadable<Uint8Array>
   address: Promise<ChunkAddress>
-  span: () => Span<SpanLength>
+  span: Promise<Span<SpanLength>>
   bmt: GenericReadable<Chunk<MaxChunkPayloadLength, SpanLength>>
 }
 
 /**
- * Calculates number of leaf chunks from payload length
- * @param payloadLength Payload length
- * @param options settings for the used chunks
- * @returns Number of leaf chunks
+ * Calculates total number of bytes received in given readable stream
+ * @param payload byte array stream
+ * @returns Total number of bytes resolved by a promise
  */
-export function byteLengthToChunkLength<
-  MaxChunkPayloadLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
-  SpanLength extends number = typeof DEFAULT_SPAN_SIZE,
->(
-  payloadLength: number,
-  options?: {
-    maxPayloadLength?: MaxChunkPayloadLength
-    spanLength?: SpanLength
-  },
-): number {
-  const maxPayloadLength = (options?.maxPayloadLength || DEFAULT_MAX_PAYLOAD_SIZE) as MaxChunkPayloadLength
+async function getByteStreamLength(payload: GenericReadable<Uint8Array>): Promise<number> {
+  return new Promise((resolve, reject) => {
+    let dataLength = 0
+    payload.on('data', chunk => (dataLength += chunk.length))
 
-  return Math.ceil(payloadLength / maxPayloadLength)
+    payload.on('close', () => resolve(dataLength))
+
+    payload.on('error', error => reject(error))
+  })
 }
 
 /**
  * Creates object for performing BMT functions on payload data using streams
  *
  * @param payload byte array stream of the data
+ * @param chunkStreamFactory A factory function for a readable stream
  * @param options settings for the used chunks
  * @returns ChunkedFileDeferred object with helper methods
  */
@@ -58,7 +54,6 @@ export function makeChunkedFileWithStreams<
   SpanLength extends number = typeof DEFAULT_SPAN_SIZE,
 >(
   payload: GenericReadable<Uint8Array>,
-  payloadLength: number,
   chunkStreamFactory: () => GenericReadable<Chunk<MaxChunkPayloadLength, SpanLength>>,
   options?: {
     maxPayloadLength?: MaxChunkPayloadLength
@@ -66,11 +61,11 @@ export function makeChunkedFileWithStreams<
   },
 ): ChunkedFileDeferred<MaxChunkPayloadLength, SpanLength> {
   const spanLength = (options?.spanLength || DEFAULT_SPAN_SIZE) as SpanLength
-  const chunkLength = byteLengthToChunkLength(payloadLength, options)
+  const payloadLengthPromise = getByteStreamLength(payload)
 
   const leafStream = createLeafChunksStream(payload, chunkStreamFactory, options)
 
-  const rootChunk = bmtRootChunkWithStreams(leafStream, chunkLength, chunkStreamFactory)
+  const rootChunk = bmtRootChunkWithStreams(leafStream, chunkStreamFactory)
 
   const address = new Promise(async (resolve, reject) => {
     try {
@@ -80,11 +75,19 @@ export function makeChunkedFileWithStreams<
     }
   })
 
-  const bmt = bmtWithStreams(leafStream, chunkLength, chunkStreamFactory)
+  const span = new Promise<Span<SpanLength>>(async (resolve, reject) => {
+    try {
+      resolve(makeSpan(await payloadLengthPromise, spanLength))
+    } catch (error) {
+      reject(error)
+    }
+  })
+
+  const bmt = bmtWithStreams(leafStream, chunkStreamFactory)
 
   return {
     payload,
-    span: () => makeSpan(payloadLength, spanLength),
+    span,
     leafChunks: leafStream,
     address: address as Promise<ChunkAddress>,
     rootChunk,
@@ -95,7 +98,6 @@ export function makeChunkedFileWithStreams<
 /**
  * Generates BMT chunks and outputs them to a readable stream.
  * @param payload Readable stream of Uint8Array data
- * @param payloadLength Total number of bytes in payload
  * @param chunkStreamFactory A factory function for a readable stream
  * @param options settings for the used chunks
  * @returns A readable stream with all chunks from BMT. Levels are separated
@@ -106,7 +108,6 @@ export function createBmtWithStreams<
   SpanLength extends number = typeof DEFAULT_SPAN_SIZE,
 >(
   payload: GenericReadable<Uint8Array>,
-  payloadLength: number,
   chunkStreamFactory: () => GenericReadable<Chunk<MaxChunkPayloadLength, SpanLength>>,
   options?: {
     maxPayloadLength?: MaxChunkPayloadLength
@@ -114,15 +115,13 @@ export function createBmtWithStreams<
   },
 ): GenericReadable<Chunk<MaxChunkPayloadLength, SpanLength>> {
   const leafStream = createLeafChunksStream(payload, chunkStreamFactory, options)
-  const leafChunkLength = byteLengthToChunkLength(payloadLength, options)
 
-  return bmtWithStreams(leafStream, leafChunkLength, chunkStreamFactory)
+  return bmtWithStreams(leafStream, chunkStreamFactory)
 }
 
 /**
  * Calculates root chunk for bytes received by a readable stream
  * @param payload Readable stream of Uint8Array data
- * @param payloadLength Total number of bytes in payload
  * @param chunkStreamFactory A factory function for a readable stream
  * @param options settings for the used chunks
  * @returns Promise resolved with root chunk
@@ -132,7 +131,6 @@ export async function createBmtRootChunkWithStreams<
   SpanLength extends number = typeof DEFAULT_SPAN_SIZE,
 >(
   payload: GenericReadable<Uint8Array>,
-  payloadLength: number,
   chunkStreamFactory: () => GenericReadable<Chunk<MaxChunkPayloadLength, SpanLength>>,
   options?: {
     maxPayloadLength?: MaxChunkPayloadLength
@@ -140,9 +138,8 @@ export async function createBmtRootChunkWithStreams<
   },
 ): Promise<Chunk<MaxChunkPayloadLength, SpanLength>> {
   const leafStream = createLeafChunksStream(payload, chunkStreamFactory, options)
-  const leafChunkLength = byteLengthToChunkLength(payloadLength, options)
 
-  return bmtRootChunkWithStreams(leafStream, leafChunkLength, chunkStreamFactory)
+  return bmtRootChunkWithStreams(leafStream, chunkStreamFactory)
 }
 
 /**
@@ -203,7 +200,6 @@ export function createLeafChunksStream<
 /**
  * Generates BMT chunks and outputs them to a readable stream.
  * @param chunks Readable stream of leaf chunks
- * @param chunksLength Total number of leaf chunks expected
  * @param chunkStreamFactory A factory function for a readable stream
  * @returns A readable stream with all chunks from BMT. Levels are separated
  * by empty chunks (payload.length === 0)
@@ -213,34 +209,36 @@ function bmtWithStreams<
   SpanLength extends number = typeof DEFAULT_SPAN_SIZE,
 >(
   leafChunks: GenericReadable<Chunk<MaxChunkPayloadLength, SpanLength>>,
-  chunksLength: number,
   chunkStreamFactory: () => GenericReadable<Chunk<MaxChunkPayloadLength, SpanLength>>,
 ): GenericReadable<Chunk<MaxChunkPayloadLength, SpanLength>> {
   const outputStream = chunkStreamFactory()
+  let chunksLength = 0
 
-  if (chunksLength === 0) {
-    throw new Error(`given chunk array is empty`)
-  }
+  try {
+    let firstChunk: Chunk<MaxChunkPayloadLength, SpanLength> | null = null
+    let prevChunk: Chunk<MaxChunkPayloadLength, SpanLength> | null = null
 
-  checkShouldPopCarrierChunkWithStreams(leafChunks, chunksLength, (error, initialChunk, popCarrierChunk) => {
-    try {
-      if (error) {
-        throw error
+    leafChunks.on('data', chunk => {
+      chunksLength += 1
+
+      if (chunksLength === 1) {
+        firstChunk = chunk
       }
 
-      if (popCarrierChunk) {
-        chunksLength -= 1
-      }
-
-      let prevChunk = initialChunk
-
-      leafChunks.on('data', chunk => {
+      if (prevChunk) {
         outputStream.push(prevChunk)
-        prevChunk = chunk
-      })
+      }
 
-      leafChunks.on('close', () => {
-        if (!popCarrierChunk && prevChunk) {
+      prevChunk = chunk
+    })
+
+    leafChunks.on('close', () => {
+      try {
+        if (chunksLength === 0) {
+          throw new Error(`given chunk array is empty`)
+        }
+
+        if (!shouldPopCarrierChunk(firstChunk as Chunk<MaxChunkPayloadLength, SpanLength>, chunksLength)) {
           outputStream.push(prevChunk)
         }
 
@@ -249,52 +247,47 @@ function bmtWithStreams<
         } else {
           outputStream.push(makeChunk(new Uint8Array()))
         }
-      })
+      } catch (error) {
+        outputStream.emit('error', error as Error)
+      }
+    })
 
-      leafChunks.on('error', error => outputStream.emit('error', error))
+    leafChunks.on('error', error => outputStream.emit('error', error))
 
-      if (chunksLength === 1) {
-        return
+    const { nextCarrierChunk: nextLevelCarrierChunk, nextLevelChunks } = firstBmtLevelWithStreams(
+      leafChunks,
+      chunkStreamFactory,
+    )
+
+    let levelChunks: Chunk<MaxChunkPayloadLength, SpanLength>[] = []
+
+    nextLevelChunks.on('data', chunk => levelChunks.push(chunk))
+
+    nextLevelChunks.on('close', async () => {
+      let carrierChunk = await nextLevelCarrierChunk
+
+      levelChunks.forEach(chunk => outputStream.push(chunk))
+
+      while (levelChunks.length !== 1) {
+        outputStream.push(makeChunk(new Uint8Array()))
+
+        const { nextLevelChunks, nextLevelCarrierChunk } = nextBmtLevel(levelChunks, carrierChunk)
+
+        nextLevelChunks.forEach(chunk => outputStream.push(chunk))
+
+        levelChunks = nextLevelChunks
+        carrierChunk = nextLevelCarrierChunk
       }
 
-      const { nextCarrierChunk: nextLevelCarrierChunk, nextLevelChunks } = firstBmtLevelWithStreams(
-        leafChunks,
-        chunksLength,
-        initialChunk as Chunk<MaxChunkPayloadLength, SpanLength>,
-        popCarrierChunk,
-        chunkStreamFactory,
-      )
+      outputStream.destroy()
+    })
 
-      let levelChunks: Chunk<MaxChunkPayloadLength, SpanLength>[] = []
-
-      nextLevelChunks.on('data', chunk => levelChunks.push(chunk))
-
-      nextLevelChunks.on('close', async () => {
-        let carrierChunk = await nextLevelCarrierChunk
-
-        levelChunks.forEach(chunk => outputStream.push(chunk))
-
-        while (levelChunks.length !== 1) {
-          outputStream.push(makeChunk(new Uint8Array()))
-
-          const { nextLevelChunks, nextLevelCarrierChunk } = nextBmtLevel(levelChunks, carrierChunk)
-
-          nextLevelChunks.forEach(chunk => outputStream.push(chunk))
-
-          levelChunks = nextLevelChunks
-          carrierChunk = nextLevelCarrierChunk
-        }
-
-        outputStream.destroy()
-      })
-
-      nextLevelChunks.on('error', error => {
-        outputStream.emit('error', error)
-      })
-    } catch (error) {
-      outputStream.emit('error', error as Error)
-    }
-  })
+    nextLevelChunks.on('error', error => {
+      outputStream.emit('error', error)
+    })
+  } catch (error) {
+    outputStream.emit('error', error as Error)
+  }
 
   return outputStream
 }
@@ -302,7 +295,6 @@ function bmtWithStreams<
 /**
  * Calculates root chunk for leaf chunks received by a readable stream
  * @param chunks Readable stream of leaf chunks
- * @param chunksLength Total number of leaf chunks expected
  * @param chunkStreamFactory A factory function for a readable stream
  * @returns Promise resolved with root chunk
  */
@@ -311,62 +303,42 @@ async function bmtRootChunkWithStreams<
   SpanLength extends number = typeof DEFAULT_SPAN_SIZE,
 >(
   chunks: GenericReadable<Chunk<MaxChunkPayloadLength, SpanLength>>,
-  chunksLength: number,
   chunkStreamFactory: () => GenericReadable<Chunk<MaxChunkPayloadLength, SpanLength>>,
 ): Promise<Chunk<MaxChunkPayloadLength, SpanLength>> {
   const result = new Deferred<Chunk<MaxChunkPayloadLength, SpanLength>>()
+  let chunksLength = 0
 
   try {
-    if (chunksLength === 0) {
-      result.reject(new Error(`given chunk array is empty`))
-    }
+    const { nextCarrierChunk: nextLevelCarrierChunk, nextLevelChunks } = firstBmtLevelWithStreams(
+      chunks,
+      chunkStreamFactory,
+    )
 
-    checkShouldPopCarrierChunkWithStreams(chunks, chunksLength, (error, initialChunk, popCarrierChunk) => {
-      try {
-        if (error) {
-          throw error
-        }
+    let levelChunks: Chunk<MaxChunkPayloadLength, SpanLength>[] = []
 
-        if (popCarrierChunk) {
-          chunksLength -= 1
-        }
+    nextLevelChunks.on('data', chunk => {
+      chunksLength += 1
+      levelChunks.push(chunk)
+    })
 
-        if (chunksLength === 1 && !popCarrierChunk) {
-          return result.resolve(initialChunk as Chunk<MaxChunkPayloadLength, SpanLength>)
-        }
-
-        const { nextCarrierChunk: nextLevelCarrierChunk, nextLevelChunks } = firstBmtLevelWithStreams(
-          chunks,
-          chunksLength,
-          initialChunk as Chunk<MaxChunkPayloadLength, SpanLength>,
-          popCarrierChunk,
-          chunkStreamFactory,
-        )
-
-        let levelChunks: Chunk<MaxChunkPayloadLength, SpanLength>[] = []
-
-        nextLevelChunks.on('data', chunk => {
-          levelChunks.push(chunk)
-        })
-
-        nextLevelChunks.on('close', async () => {
-          let carrierChunk = await nextLevelCarrierChunk
-
-          while (levelChunks.length !== 1 || carrierChunk) {
-            const { nextLevelChunks, nextLevelCarrierChunk } = nextBmtLevel(levelChunks, carrierChunk)
-            levelChunks = nextLevelChunks
-            carrierChunk = nextLevelCarrierChunk
-          }
-
-          result.resolve(levelChunks[0])
-        })
-
-        nextLevelChunks.on('error', error => {
-          result.reject(error)
-        })
-      } catch (error) {
-        result.reject(error)
+    nextLevelChunks.on('close', async () => {
+      if (chunksLength === 0) {
+        result.reject(new Error(`given chunk array is empty`))
       }
+
+      let carrierChunk = await nextLevelCarrierChunk
+
+      while (levelChunks.length !== 1 || carrierChunk) {
+        const { nextLevelChunks, nextLevelCarrierChunk } = nextBmtLevel(levelChunks, carrierChunk)
+        levelChunks = nextLevelChunks
+        carrierChunk = nextLevelCarrierChunk
+      }
+
+      result.resolve(levelChunks[0])
+    })
+
+    nextLevelChunks.on('error', error => {
+      result.reject(error)
     })
   } catch (error) {
     result.reject(error)
@@ -377,97 +349,83 @@ async function bmtRootChunkWithStreams<
 
 /**
  * A helper function that generates first level of intermediate chunks using streams.
- * It is expected that first chunk has already been received and calculated whether
- * last chunk should be excluded.
  * @param chunks Readable stream of leaf chunks
- * @param chunksLength Total number of leaf chunks expected
- * @param initialChunk First chunk that has already been received
- * @param popCarrierChunk Whether last chunk should be excluded from current level
  * @param chunkArrayStreamFactory A factory function for a readable stream
- * @returns A readable stream of first level intermediate chunks,
- * number of chunks in first level and a promise of carrierChunk for this level
+ * @returns A readable stream of first level intermediate chunks and a promise of
+ * carrierChunk for this level
  */
 function firstBmtLevelWithStreams<
   MaxChunkPayloadLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
   SpanLength extends number = typeof DEFAULT_SPAN_SIZE,
 >(
   chunks: GenericReadable<Chunk<MaxChunkPayloadLength, SpanLength>>,
-  chunksLength: number,
-  initialChunk: Chunk<MaxChunkPayloadLength, SpanLength>,
-  popCarrierChunk: boolean,
   chunkArrayStreamFactory: () => GenericReadable<Chunk<MaxChunkPayloadLength, SpanLength>>,
 ): {
   nextLevelChunks: GenericReadable<Chunk<MaxChunkPayloadLength, SpanLength>>
   nextCarrierChunk: Promise<Chunk<MaxChunkPayloadLength, SpanLength> | null>
-  nextLevelChunksLength: number
 } {
   const nextLevelChunks: GenericReadable<Chunk<MaxChunkPayloadLength, SpanLength>> = chunkArrayStreamFactory()
 
-  if (chunksLength === 0) {
-    throw new Error('The given chunk array is empty')
-  }
+  let firstReceivedChunk: Chunk<MaxChunkPayloadLength, SpanLength>
+  let lastReceivedChunk: Chunk<MaxChunkPayloadLength, SpanLength>
+  let firstSentChunk: Chunk<MaxChunkPayloadLength, SpanLength>
 
-  let lastChunk: Chunk<MaxChunkPayloadLength, SpanLength>
-  let nextPopCarrierChunk = popCarrierChunk
-  let nextLevelChunksBuffer: Chunk<MaxChunkPayloadLength, SpanLength>[] = [initialChunk]
+  let prevIntermediateChunk: Chunk<MaxChunkPayloadLength, SpanLength> | null = null
+
   const nextCarrierChunk = new Deferred<Chunk<MaxChunkPayloadLength, SpanLength> | null>()
+  let nextLevelChunksBuffer: Chunk<MaxChunkPayloadLength, SpanLength>[] = []
   let generatedChunksCount = 0
-
-  const maxPayloadLength = initialChunk.maxPayloadLength
-  const spanLength = initialChunk.spanLength
-  const maxSegmentCount = maxPayloadLength / SEGMENT_SIZE
-  let nextLevelChunksLength = Math.ceil(chunksLength / maxSegmentCount)
-  const carrierChunkIncluded = nextLevelChunksLength % maxSegmentCount !== 0
-  let receivedChunks = 1
-
-  if (popCarrierChunk) {
-    if (carrierChunkIncluded) {
-      nextLevelChunksLength += 1
-      nextPopCarrierChunk = false
-    }
-  } else {
-    nextPopCarrierChunk = shouldPopCarrierChunk(initialChunk, nextLevelChunksLength)
-    if (nextPopCarrierChunk) {
-      nextLevelChunksLength -= 1
-    }
-  }
-
-  if (!nextPopCarrierChunk) {
-    nextCarrierChunk.resolve(null)
-  }
+  let receivedChunks = 0
+  let maxPayloadLength: number
+  let spanLength: number
+  let maxSegmentCount: number
 
   const handleChunk = (chunk: Chunk<MaxChunkPayloadLength, SpanLength>) => {
     generatedChunksCount += 1
 
-    if (generatedChunksCount <= nextLevelChunksLength) {
-      nextLevelChunks.push(chunk)
-    } else if (nextPopCarrierChunk) {
-      nextCarrierChunk.resolve(chunk)
+    if (!firstReceivedChunk) {
+      firstReceivedChunk = chunk
     }
+
+    if (generatedChunksCount === 1) {
+      firstSentChunk = chunk
+    }
+
+    nextLevelChunks.push(chunk)
   }
 
   chunks.on('data', chunk => {
     try {
       receivedChunks += 1
 
-      if (receivedChunks <= chunksLength || !popCarrierChunk) {
-        nextLevelChunksBuffer.push(chunk)
-      }
+      lastReceivedChunk = chunk
 
-      lastChunk = chunk
+      nextLevelChunksBuffer.push(chunk)
+
+      if (receivedChunks === 1) {
+        firstReceivedChunk = chunk
+        maxPayloadLength = chunk.maxPayloadLength
+        spanLength = chunk.spanLength
+        maxSegmentCount = maxPayloadLength / SEGMENT_SIZE
+      }
 
       for (
         let offset = 0;
-        offset + maxSegmentCount <= nextLevelChunksBuffer.length;
+        offset + maxSegmentCount < nextLevelChunksBuffer.length;
         offset += maxSegmentCount
       ) {
+        if (prevIntermediateChunk) {
+          handleChunk(prevIntermediateChunk)
+        }
         const childrenChunks = nextLevelChunksBuffer.slice(offset, offset + maxSegmentCount)
-        const intermediateChunk = createIntermediateChunk(childrenChunks, spanLength, maxPayloadLength)
-
-        handleChunk(intermediateChunk as Chunk<MaxChunkPayloadLength, SpanLength>)
+        prevIntermediateChunk = createIntermediateChunk(
+          childrenChunks,
+          spanLength,
+          maxPayloadLength,
+        ) as Chunk<MaxChunkPayloadLength, SpanLength>
       }
 
-      if (nextLevelChunksBuffer.length >= maxSegmentCount) {
+      if (nextLevelChunksBuffer.length > maxSegmentCount) {
         nextLevelChunksBuffer = nextLevelChunksBuffer.slice(
           Math.floor(nextLevelChunksBuffer.length / maxSegmentCount) * maxSegmentCount,
           nextLevelChunksBuffer.length,
@@ -480,17 +438,51 @@ function firstBmtLevelWithStreams<
   })
 
   chunks.on('close', () => {
-    for (let offset = 0; offset < nextLevelChunksBuffer.length; offset += maxSegmentCount) {
-      const childrenChunks = nextLevelChunksBuffer.slice(offset, offset + maxSegmentCount)
-      const intermediateChunk = createIntermediateChunk(childrenChunks, spanLength, maxPayloadLength)
-      handleChunk(intermediateChunk as Chunk<MaxChunkPayloadLength, SpanLength>)
-    }
+    let nextCarrierChunkValue: Chunk<MaxChunkPayloadLength, SpanLength> | null = null
 
-    if (popCarrierChunk && carrierChunkIncluded) {
-      nextLevelChunks.push(lastChunk)
-    }
+    try {
+      if (receivedChunks === 0) {
+        throw new Error('The given chunk array is empty')
+      }
 
-    nextLevelChunks.destroy()
+      const popCarrierChunk = shouldPopCarrierChunk(firstReceivedChunk, receivedChunks)
+
+      if (popCarrierChunk) {
+        nextLevelChunksBuffer.pop()
+      }
+
+      if (receivedChunks === 1 && !popCarrierChunk) {
+        return nextLevelChunks.push(firstReceivedChunk)
+      }
+
+      for (let offset = 0; offset < nextLevelChunksBuffer.length; offset += maxSegmentCount) {
+        if (prevIntermediateChunk) {
+          handleChunk(prevIntermediateChunk)
+        }
+        const childrenChunks = nextLevelChunksBuffer.slice(offset, offset + maxSegmentCount)
+        prevIntermediateChunk = createIntermediateChunk(
+          childrenChunks,
+          spanLength,
+          maxPayloadLength,
+        ) as Chunk<MaxChunkPayloadLength, SpanLength>
+      }
+
+      if (popCarrierChunk || !shouldPopCarrierChunk(firstSentChunk, generatedChunksCount + 1)) {
+        handleChunk(prevIntermediateChunk as Chunk<MaxChunkPayloadLength, SpanLength>)
+      } else if (shouldPopCarrierChunk(firstSentChunk, generatedChunksCount + 1)) {
+        nextCarrierChunkValue = prevIntermediateChunk
+      }
+
+      if (popCarrierChunk && generatedChunksCount % maxSegmentCount !== 0) {
+        nextLevelChunks.push(lastReceivedChunk)
+      }
+    } catch (error) {
+      nextLevelChunks.emit('error', error as Error)
+      nextCarrierChunk.reject(error)
+    } finally {
+      nextCarrierChunk.resolve(nextCarrierChunkValue)
+      nextLevelChunks.destroy()
+    }
   })
 
   chunks.on('error', error => {
@@ -500,54 +492,8 @@ function firstBmtLevelWithStreams<
 
   return {
     nextLevelChunks,
-    nextLevelChunksLength,
     nextCarrierChunk: nextCarrierChunk.promise,
   }
-}
-
-/**
- * A helper function that waits for first chunk to arrive and determines
- * whether last chunk should be excluded from current level.
- *
- * @param chunks Readable chunk stream
- * @param chunkLength Total number of chunks expected in the stream
- * @param callback Called when first chunk is received and determined wheter last chunk
- * should be excluded
- */
-function checkShouldPopCarrierChunkWithStreams<
-  MaxChunkPayloadLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
-  SpanLength extends number = typeof DEFAULT_SPAN_SIZE,
->(
-  chunks: GenericReadable<Chunk<MaxChunkPayloadLength, SpanLength>>,
-  chunksLength: number,
-  callback: (
-    error: unknown | null,
-    initialChunk: Chunk<MaxChunkPayloadLength, SpanLength> | null,
-    popCarrierChunk: boolean,
-  ) => void,
-) {
-  let firstChunk: Chunk<MaxChunkPayloadLength, SpanLength> | null = null
-  let popCarrierChunk = false
-
-  chunks.on('data', chunk => {
-    if (!firstChunk) {
-      firstChunk = chunk
-
-      popCarrierChunk = shouldPopCarrierChunk(firstChunk, chunksLength)
-
-      callback(null, firstChunk, popCarrierChunk)
-    }
-  })
-
-  chunks.on('close', () => {
-    if (!firstChunk) {
-      callback(null, firstChunk, popCarrierChunk)
-    }
-  })
-
-  chunks.on('error', error => {
-    callback(error, firstChunk, popCarrierChunk)
-  })
 }
 
 /**
