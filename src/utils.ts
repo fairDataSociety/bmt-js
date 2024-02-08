@@ -1,7 +1,21 @@
+/* eslint-disable @typescript-eslint/no-empty-function */
 import { keccak256, Message } from 'js-sha3'
 
 /** Used for FavorTypes */
 export type Flavor<Name> = { __tag__?: Name }
+
+export class Deferred<T> {
+  public resolve: (value: T) => void = () => {}
+  public reject: (reason?: unknown) => void = () => {}
+  public promise: Promise<T>
+
+  constructor() {
+    this.promise = new Promise((resolve, reject) => {
+      this.resolve = resolve
+      this.reject = reject
+    })
+  }
+}
 
 /**
  * Nominal type to represent hex strings WITHOUT '0x' prefix.
@@ -111,3 +125,12 @@ export function equalBytes(a: Uint8Array, b: Uint8Array): boolean {
 }
 
 export { Message }
+
+export function concatBytes(bytes1: Uint8Array, bytes2: Uint8Array): Uint8Array {
+  const buffer = new Uint8Array(bytes1.length + bytes2.length)
+
+  buffer.set(bytes1, 0)
+  buffer.set(bytes2, bytes1.length)
+
+  return buffer
+}

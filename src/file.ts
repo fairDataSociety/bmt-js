@@ -264,7 +264,7 @@ function bmtRootChunk<
   return levelChunks[0]
 }
 
-function nextBmtLevel<
+export function nextBmtLevel<
   MaxChunkPayloadLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
   SpanLength extends number = typeof DEFAULT_SPAN_SIZE,
 >(
@@ -308,7 +308,7 @@ function nextBmtLevel<
   }
 }
 
-function createIntermediateChunk<
+export function createIntermediateChunk<
   MaxChunkPayloadLength extends number = typeof DEFAULT_MAX_PAYLOAD_SIZE,
   SpanLength extends number = typeof DEFAULT_SPAN_SIZE,
 >(

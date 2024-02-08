@@ -26,5 +26,7 @@ export default async function testsSetup(): Promise<void> {
       // so we are only logging errors and not leaving them to propagate
       console.error(e)
     }
+
+    await sleep(120 * 1000)
   }
 }
