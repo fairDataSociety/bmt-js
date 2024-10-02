@@ -9,8 +9,8 @@
     "url": "https://github.com/nugaon/bmt-js.git"
   },
   "scripts": {
-    "prepare": "rimraf dist && npm run compile:types && npm run compile --env mode=production",
-    "compile": "webpack --progress --env target=node",
+    "prepare": "rimraf dist && npm run compile:types && npm run compile",
+    "compile": "tsc",
     "compile:types": "tsc --emitDeclarationOnly --declaration --skipLibCheck",
     "dev": "npm run compile -- --watch --env mode=development",
     "lint": "eslint --fix \"src/**/*.ts\" && prettier --write \"src/**/*.ts\"",
