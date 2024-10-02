@@ -1,6 +1,6 @@
 {
   "name": "@nugaon/bmt-js",
-  "version": "3.0.0",
+  "version": "2.2.0",
   "description": "Binary Merkle Tree operations on data",
   "main": "dist/index.js",
   "types": "dist/src/index.d.ts",
