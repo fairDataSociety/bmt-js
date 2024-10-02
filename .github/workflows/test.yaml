@@ -47,5 +47,7 @@ jobs:
       - name: Install npm deps
         if: steps.cache-npm.outputs.cache-hit != 'true'
         run: npm ci && npm ci && npm install -g @fairdatasociety/fdp-play
+      - name: Run FDP Play
+        run: npx fdp-play start --workers $WORKERS -d
       - name: Run tests
         run: npm run test
