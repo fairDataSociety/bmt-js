@@ -16,5 +16,5 @@ jobs:
         with:
           token: ${{ secrets.REPO_GHA_PAT }}
           release-type: node
-          package-name: '@fairdatasociety/bmt-js'
+          package-name: '@nugaon/bmt-js'
           bump-minor-pre-major: true

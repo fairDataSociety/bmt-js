@@ -1,12 +1,12 @@
 {
-  "name": "@fairdatasociety/bmt-js",
-  "version": "2.1.0",
+  "name": "@nugaon/bmt-js",
+  "version": "3.0.0",
   "description": "Binary Merkle Tree operations on data",
   "main": "dist/index.js",
   "types": "dist/src/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/fairDataSociety/bmt-js.git"
+    "url": "https://github.com/nugaon/bmt-js.git"
   },
   "scripts": {
     "prepare": "rimraf dist && npm run compile:types && npm run compile --env mode=production",
