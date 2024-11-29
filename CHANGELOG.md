@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.2.0](https://www.github.com/fairDataSociety/bmt-js/compare/v2.1.0...v2.2.0) (2024-10-02)
+
+
+### Features
+
+* let's roll ([4fe3c70](https://www.github.com/fairDataSociety/bmt-js/commit/4fe3c7074f91ef33b41361f636f6dd7ab92464ac))
+* update packages ([023d9c7](https://www.github.com/fairDataSociety/bmt-js/commit/023d9c7f4af1689804637a081327b765fa947158))
+
+
+### Bug Fixes
+
+* test setup ([f317a8c](https://www.github.com/fairDataSociety/bmt-js/commit/f317a8c15ee1437e37dcab3880035be6aa935936))
+
 ## [2.1.0](https://www.github.com/fairDataSociety/bmt-js/compare/v2.0.1...v2.1.0) (2023-07-05)
 
 

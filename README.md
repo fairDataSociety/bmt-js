@@ -7,7 +7,7 @@ The library calculates the content address of any data and also offers functions
 # Install
 
 ```sh
-npm install @fairdatasociety/bmt-js --save
+npm install @nugaon/bmt-js --save
 ```
 
 # How it works
@@ -51,7 +51,7 @@ To get these inclusion segments, the library collects all required segments from
 
 # API
 
-You can import the followings directly from `@fairdatasociety/bmt-js`:
+You can import the followings directly from `@nugaon/bmt-js`:
 
 ## Types
 
